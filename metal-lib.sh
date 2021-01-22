@@ -278,7 +278,7 @@ pave() {
     # BLOCK NUKE
     info wiping doomed raids and block-devices: "$doomed_disks"
     for doomed_disk in $doomed_disks; do
-        [ -f "$doomed_disk" ] && wipefs --all --force "$doomed_disk" 2> /dev/null
+        wipefs --all --force "$doomed_disk" 2> /dev/null || info failed to wipe doomed disk
     done
 
     _trip_udev
