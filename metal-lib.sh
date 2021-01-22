@@ -272,14 +272,19 @@ pave() {
         sleep 1 && local time_to_live=$((${time_to_live:-5} - 1)) && info "${time_to_live:-5}"
     done
 
-    # LVM NUKE
+    # NUKES: these go in order from logical -> block -> physical.
+
+    # NUKE LVMs
     info removing all ceph volume groups of $doomed_vgs && vgremove -f --select $doomed_vgs || info 'no ceph volumes'
 
-    # BLOCK NUKE
+    # NUKE BLOCKs
     info wiping doomed raids and block-devices: "$doomed_disks"
     for doomed_disk in $doomed_disks; do
         wipefs --all --force "$doomed_disk" 2> /dev/null || info failed to wipe doomed disk
     done
+
+    # NUKE RAIDs
+    mdraid-cleanup >/dev/null 2>&1 # this is very noisy and useless to see but this call is needed.
 
     _trip_udev
 
