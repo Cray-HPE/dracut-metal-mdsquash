@@ -206,14 +206,18 @@ fetch_sqfs() {
         ) || warn 'Failed to download ; may retry'
     else
         # File support; copy the authority to tmp; tmp auto-clears on root-pivot.
-        # TODO: Add file support; mount the "server" like a drive.
+        mkdir -vp /tmp/source
+
+        # Mount read-only to prevent harm to the device; we literally just need to pull the files off it.
+        mount -n -o ro "/dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority}" /tmp/source
         (
             set -e
             cd "$1"
-            cp -pv "${metal_squashfsurl#//}" . && info "copied ${squashfs_file} ... "
-            cp -pv "${metal_squashfsurl#//}/kernel" . && info 'grabbed the kernel we rode in on ... '
-            cp -pv "${metal_squashfsurl#//}${initrd}" . && info 'and its initrd ... '
+            cp -pv "/tmp/source/${metal_squashfsurl#//}" . && info "copied ${squashfs_file} ... "
+            cp -pv "/tmp/source/${metal_squashfsurl#//}/kernel" . && info 'grabbed the kernel we rode in on ... '
+            cp -pv "/tmp/source/${metal_squashfsurl#//}${initrd}" . && info 'and its initrd ... '
         ) || warn 'Failed to copy ; may retry'
+        umount /tmp/source
     fi
     if [ -f "$1/${squashfs_file}" ]; then
         echo 1 > /tmp/metalsqfsimg.done

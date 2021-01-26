@@ -1,24 +1,25 @@
 #!/bin/sh
+# Copyright 2021 Hewlett Packard Enterprise Development LP
+# metal-genrules.sh for metalmdsquash
 
 [ -z "${metal_debug:-0}" ] || set -x
 
 # Load and execute with desired URL driver.
 case "${metal_server:-}" in
-    http:* | https:*)
+    ''|file:*|http:*|https:*)
         # use built-in driver for basic file/http/https url
         /sbin/initqueue --settled /sbin/metal-md-disks
         ;;
-    file:device=*)
-        #todo: add disk-mount support (metal.server=file:/var/www/filesystem.squashfs)
-        #todo: mount given device, then strip URL so it's "normalized."
-        # wait_for_dev /dev/disk/by-label/${metal_server#=*}
-        warn "file:device=* is not yet implemented"
+    s3:*)
+        warn s3-direct is not implemented, try http/https instead
         ;;
-    ''|file:*)
-        # todo: anything before we call this?
-        /sbin/initqueue --settled /sbin/metal-md-disks
+    ftp:*)
+        warn insecure ftp is not implemented
+        ;;
+    scp:*|sftp:*)
+        warn credential based transfer (scp and sftp) is not implemented, try http/https instead
         ;;
     *)
-        info Unknown driver "$metal_server"
+        info Unknown driver "$metal_server"; metal.server ignored/discarded
         ;;
 esac
