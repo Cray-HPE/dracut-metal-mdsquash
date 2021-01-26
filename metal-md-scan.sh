@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright 2021 Hewlett Packard Enterprise Development LP
+# metal-md-scan.sh for metalmdsquash
 
 if ! lsmod | grep -q raid1 ; then :
     modprobe raid1 || metal_die 'no raid module!'
