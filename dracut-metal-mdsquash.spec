@@ -14,7 +14,7 @@
 Name: %{namespace}-%{intranamespace_name}
 Packager: <rustydb@hpe.com>
 Release: %(echo ${BUILD_METADATA})
-Vendor: Cray HPE
+Vendor: Cray Inc.
 Version: %{x_y_z}
 Source: %{source_name}.tar.bz2
 BuildArch: noarch
@@ -22,8 +22,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
 Group: System/Management
 License: MIT License
 Summary: Install the Metal dracut module for loading squashFS and persistent overlays
-Provides: metal-mdsquash
-Provides: 98metalmdsquash
+Provides: metal-squashfs-url-dracut
 
 Requires: rpm
 Requires: coreutils
@@ -31,7 +30,7 @@ Requires: dracut
 Requires: iputils
 
 %define dracut_modules /usr/lib/dracut/modules.d
-%define url_dracut_doc /usr/share/doc/metal-dracut/mdsquash/
+%define url_dracut_doc /usr/share/doc/dracut-metal-mdsquash/
 
 %description
 
@@ -44,7 +43,7 @@ Requires: iputils
 %install
 %{__mkdir_p} %{buildroot}%{dracut_modules}/98metalmdsquash
 %{__mkdir_p} %{buildroot}%{url_dracut_doc}
-%{__install} -m 0755 metal-md-disks.sh module-setup.sh parse-metal.sh metal-md-lib.sh metal-genrules.sh metal-md-scan.sh %{buildroot}%{dracut_modules}/98metalmdsquash
+%{__install} -m 0755 metal-md-disks.sh module-setup.sh parse-metal.sh metal-lib.sh metal-genrules.sh metal-mdscan.sh %{buildroot}%{dracut_modules}/98metalmdsquash
 %{__install} -m 0644 README.md %{buildroot}%{url_dracut_doc}
 
 %files
