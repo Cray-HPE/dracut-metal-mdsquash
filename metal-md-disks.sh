@@ -1,10 +1,10 @@
 #!/bin/sh
-# Copyright 2021 Hewlett Packard Enterprise Development LP
-# metal-md-disks.sh for metalmdsquash
 
 # DEVICES EXIST or DIE
 ls /dev/sd* > /dev/null 2>&1 || exit 1
 
+# SUBBROUTINES
+type metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 # PRELIMINARY SCAN
 /sbin/metal-mdscan
