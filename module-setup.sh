@@ -23,9 +23,9 @@ installkernel() {
 install() {
     inst_multiple curl parted mkfs.ext4 mkfs.xfs lsblk sort head mkfs.vfat
 
-    inst_simple "$moddir/metal-lib.sh" "/lib/metal-lib.sh"
+    inst_simple "$moddir/metal-md-lib.sh" "/lib/metal-md-lib.sh"
     inst_script "$moddir/metal-md-disks.sh" /sbin/metal-md-disks
-    inst_script "$moddir/metal-mdscan.sh" /sbin/metal-mdscan
+    inst_script "$moddir/metal-md-scan.sh" /sbin/metal-mdscan
 
     inst_hook cmdline 10 "$moddir/parse-metal.sh"
     inst_hook pre-udev 10 "$moddir/metal-genrules.sh"
