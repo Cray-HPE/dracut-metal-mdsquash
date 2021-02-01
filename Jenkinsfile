@@ -1,4 +1,4 @@
-@Library("dst-shared@release/shasta-1.4") _
+@Library("dst-shared@release/master") _
 rpmBuild (
     githubPushRepo: "Cray-HPE/dracut-metal-mdsquash",
     githubPushBranches : "(release/.*|main)",
