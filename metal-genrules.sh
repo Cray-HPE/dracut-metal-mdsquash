@@ -17,7 +17,7 @@ case "${metal_server:-}" in
         warn insecure ftp is not implemented
         ;;
     scp:*|sftp:*)
-        warn credential based transfer (scp and sftp) is not implemented, try http/https instead
+        warn "credential based transfer (scp and sftp) is not implemented, try http/https instead"
         ;;
     *)
         info Unknown driver "$metal_server"; metal.server ignored/discarded
