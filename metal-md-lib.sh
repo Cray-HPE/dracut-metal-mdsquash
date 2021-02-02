@@ -69,11 +69,6 @@ case $sqfs_drive_scheme in
     PATH | path | UUID | uuid | LABEL | label)
         info "SquashFS file is on ${sqfs_drive_scheme}=${sqfs_drive_authority}"
         ;;
-    # exit so the module doesn't continue on
-    kdump)
-        info "kdump detected. exiting without error"
-        exit 0
-        ;;
     *)
         warn "Unsupported sqfs-drive-scheme ${sqfs_drive_scheme}"
         warn "Supported schemes: PATH, UUID, and LABEL"
