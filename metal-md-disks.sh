@@ -7,12 +7,14 @@ ls /dev/sd* > /dev/null 2>&1 || exit 1
 
 
 # PRELIMINARY SCAN
-/sbin/metal-mdscan
+type metal_die > /dev/null 2>&1 || . /lib/metal-md-lib.sh
+/sbin/metal-md-scan
 [ -z "${metal_server:-}" ] && exit 0
 
 # DISKS or RETRY
 md_disks="$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(sata|nvme)' | sort -h | awk '{print $2}' | head -n ${metal_disks} | tr '\n' ' ')"
 [ -z "${md_disks}" ] && exit 1
+
 
 # PAVE & GO-AROUND/RETRY
 [ ! -f /tmp/metalpave.done ] && [ "${metal_nowipe:-0}" != 1 ] && pave
