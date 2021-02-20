@@ -2,7 +2,7 @@
 rpmBuild (
     githubPushRepo: "Cray-HPE/dracut-metal-mdsquash",
     githubPushBranches: "release/.*|main",
-    master_branch: "main",
+    masterBranch: "main",
     specfile: "dracut-metal-mdsquash.spec",
     channel: "metal-ci-alerts",
     product: "csm",
