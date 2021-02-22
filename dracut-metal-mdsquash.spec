@@ -44,7 +44,7 @@ Requires: iputils
 %install
 %{__mkdir_p} %{buildroot}%{dracut_modules}/98metalmdsquash
 %{__mkdir_p} %{buildroot}%{url_dracut_doc}
-%{__install} -m 0755 metal-md-disks.sh module-setup.sh parse-metal.sh metal-md-lib.sh metal-genrules.sh metal-md-scan.sh %{buildroot}%{dracut_modules}/98metalmdsquash
+%{__install} -m 0755 metal-md-disks.sh module-setup.sh metal-update-fstab.sh parse-metal.sh metal-md-lib.sh metal-genrules.sh metal-md-scan.sh %{buildroot}%{dracut_modules}/98metalmdsquash
 %{__install} -m 0644 README.md %{buildroot}%{url_dracut_doc}
 
 %files
