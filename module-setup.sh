@@ -31,6 +31,8 @@ install() {
     # install our hooks
     inst_hook cmdline 10 "$moddir/parse-metal.sh"
     inst_hook pre-udev 10 "$moddir/metal-genrules.sh"
+    # before loading the copy any new fstab.metal into place
+    inst_hook pre-pivot 10 "$moddir/metal-update-fstab.sh"
     # dracut needs to know we must have the initqueue, we have no initqueue hooks to inherit the call.
     dracut_need_initqueue
 }
