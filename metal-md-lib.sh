@@ -190,7 +190,6 @@ add_overlayfs() {
     mkdir -m 0755 -p \
         "${mpoint}/${live_dir}/${metal_overlayfs_id}" \
         "${mpoint}/${live_dir}/${metal_overlayfs_id}/../ovlwork"
-    echo '# metal-init' > "${mpoint}/fstab.metal"
     echo 1 > /tmp/metalovalimg.done && info 'OverlayFS is ready ...'
     umount ${mpoint}
 }
