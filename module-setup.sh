@@ -34,7 +34,7 @@ install() {
     # before loading the copy any new fstab.metal into place
     inst_hook pre-pivot 10 "$moddir/metal-update-fstab.sh"
     # FIXME: Causes cloud-init to fail setting up.
-#    inst_hook pre-pivot 20 "$moddir/metal-udev.sh"
+    inst_hook pre-pivot 20 "$moddir/metal-udev.sh"
     # dracut needs to know we must have the initqueue, we have no initqueue hooks to inherit the call.
     dracut_need_initqueue
 }
