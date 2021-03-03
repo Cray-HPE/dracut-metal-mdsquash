@@ -271,7 +271,7 @@ pave() {
     local doomed_vgs='vg_name=~ceph*'
 
     # Select the span of devices we care about; RAID, SATA, and NVME devices/handles.
-    doomed_disks=$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|sata|nvme)' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ')
+    doomed_disks=$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|sata|nvme|sas)' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ')
     [ -z "$doomed_disks" ] && echo 0 > /tmp/metalpave.done && return 0
 
     info nothing can be done to stop this except one one thing...
