@@ -12,7 +12,7 @@
 ################################################################################
 
 Name: %{namespace}-%{intranamespace_name}
-Packager: <rustydb@hpe.com>
+Packager: <doomslayer@hpe.com>
 Release: %(echo ${BUILD_METADATA})
 Vendor: Cray HPE
 Version: %{x_y_z}
@@ -23,7 +23,7 @@ Group: System/Management
 License: MIT License
 Summary: Install the Metal dracut module for loading squashFS and persistent overlays
 Provides: metal-mdsquash
-Provides: 98metalmdsquash
+Provides: 90metalmdsquash
 
 Requires: rpm
 Requires: coreutils
@@ -32,6 +32,7 @@ Requires: iputils
 
 %define dracut_modules /usr/lib/dracut/modules.d
 %define url_dracut_doc /usr/share/doc/metal-dracut/mdsquash/
+%define module_name 90metalmdsquash
 
 %description
 
@@ -42,22 +43,19 @@ Requires: iputils
 %build
 
 %install
-%{__mkdir_p} %{buildroot}%{dracut_modules}/98metalmdsquash
 %{__mkdir_p} %{buildroot}%{url_dracut_doc}
-%{__install} -m 0755 metal-md-disks.sh module-setup.sh metal-udev.sh metal-update-fstab.sh parse-metal.sh metal-md-lib.sh metal-genrules.sh metal-md-scan.sh %{buildroot}%{dracut_modules}/98metalmdsquash
+%{__mkdir_p} %{buildroot}%{dracut_modules}/%{module_name}
+cp -pvrR ./%{module_name}/* %{buildroot}%{dracut_modules}/%{module_name} | awk '{print $3}' | sed "s/'//g" | sed "s|$RPM_BUILD_ROOT||g" | tee -a INSTALLED_FILES
 %{__install} -m 0644 README.md %{buildroot}%{url_dracut_doc}
 
-%files
+%files -f INSTALLED_FILES
 %defattr(0755, root, root)
 %license LICENSE
-%dir %{dracut_modules}/98metalmdsquash
-%{dracut_modules}/98metalmdsquash/*.sh
+%dir %{dracut_modules}/%{module_name}
 %dir %{url_dracut_doc}
 %attr(644, root, root) %{url_dracut_doc}/README.md
 
 %pre
-# Remove legacy files.
-rm -rf %{dracut_modules}/98metalsquashfsurl
 
 %post
 
