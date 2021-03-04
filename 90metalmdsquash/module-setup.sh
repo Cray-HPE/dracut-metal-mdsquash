@@ -31,10 +31,12 @@ install() {
     # install our hooks
     inst_hook cmdline 10 "$moddir/parse-metal.sh"
     inst_hook pre-udev 10 "$moddir/metal-genrules.sh"
+
     # before loading the copy any new fstab.metal into place
+    # copy udev rules into the sysroot available during pre-pivot
     inst_hook pre-pivot 10 "$moddir/metal-update-fstab.sh"
-    # FIXME: Causes cloud-init to fail setting up.
-    inst_hook pre-pivot 20 "$moddir/metal-udev.sh"
+    inst_hook pre-pivot 11 "$moddir/metal-udev.sh"
+
     # dracut needs to know we must have the initqueue, we have no initqueue hooks to inherit the call.
     dracut_need_initqueue
 }
