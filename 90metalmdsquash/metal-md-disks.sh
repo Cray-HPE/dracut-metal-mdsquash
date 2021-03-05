@@ -11,7 +11,7 @@ type metal_die > /dev/null 2>&1 || . /lib/metal-md-lib.sh
 [ -z "${metal_server:-}" ] && exit 0
 
 # DISKS or RETRY
-md_disks="$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(sata|nvme)' | sort -h | awk '{print $2}' | head -n ${metal_disks} | tr '\n' ' ')"
+md_disks="$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(sata|nvme|sas)' | sort -h | awk '{print $2}' | head -n ${metal_disks} | tr '\n' ' ')"
 [ -z "${md_disks}" ] && exit 1
 
 # PAVE & GO-AROUND/RETRY
