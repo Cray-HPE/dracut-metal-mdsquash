@@ -1,4 +1,4 @@
-# Metal MDSquash
+# 90metalmdsquash - mdraid management for squashFS image storage with persistent overlayFS
 
 The Metal MDSquash dracut module lives in the initramFS, used during a server's boot. Within the initramFS, `metalmdsquash` does three things:
 - It creates an mdraid array and sets up three partition
