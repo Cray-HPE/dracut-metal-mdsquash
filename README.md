@@ -67,24 +67,24 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 ### metal-mdsquash customizations
 
-`metal.debug=0`
+##### `metal.debug=0`
 > Enables debug output, verbosely prints the creation of the RAIDs and fetching of the squashFS image.
 > Set this to any non-zero to enable debugging.
 
-`metal.disks=2`
+##### `metal.disks=2`
 > Specify the number of disks to use in the local mirror (RAID-1).
 
 
-`metal.md-level=mirror`
+##### `metal.md-level=mirror`
 > Change the level passed to mdadm for RAID creation, possible values are any value it takes. 
 > Milaege varies, buyer beware this could dig a hole deeper.
 
-`metal.no-wipe=0`
+##### `metal.no-wipe=0`
 > If this is set to 1, then the existing partition table will remain untouched. No new partitons
 > are created and no new RAIDs. Only set this if the current layout works, i.e. the client 
 > already has the right partitions and a bootable ROM.
 
-`metal.sqfs-md-size=100`
+##### `metal.sqfs-md-size=100`
 > Set the size for the new SQFS partition.
 > Buyer beware this does not resize, this applies for new partitions.
 
