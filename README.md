@@ -117,7 +117,7 @@ reference: [dracut dmsquashlive cmdline](1)
 ##### `rd.live.overlay.size=204800`
 > Specify the size of the overlay in MB.
 
-`rd.live.squashimg=filesystem.squashfs`
+##### `rd.live.squashimg=filesystem.squashfs`
 > Specify the filename to refer to download.
 
 ### dracut : standard customizations
