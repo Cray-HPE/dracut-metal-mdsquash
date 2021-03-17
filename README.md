@@ -61,9 +61,11 @@ Other drivers, such as native `s3`, `scp`, and `ftp` could be _added_.
 
 These drivers schemes are all defined by the rule generator, [`metal-genrules.sh`](./metal-genrules.sh).
 
-## Module Customization
+# Parameters
 
 **The assigned value denotes the default value when the option is omitted on the cmdline.**
+
+## Customizable Parameters
 
 ### metal-mdsquash customizations
 
@@ -73,7 +75,6 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 ##### `metal.disks=2`
 > Specify the number of disks to use in the local mirror (RAID-1).
-
 
 ##### `metal.md-level=mirror`
 > Change the level passed to mdadm for RAID creation, possible values are any value it takes. 
@@ -127,7 +128,19 @@ notereference: [dracut standard cmdline](2)
 ##### `rootfallback=LABEL=BOOTRAID`
 > This the label for the partition to be used for a fallback bootloader.
 
-## RootFS and the Persistent OverlayFS
+## Required Parameters
+
+The following parameters are required for this module to work, however they belong to the native dracut space.
+
+> See [`module-setup.sh`](./90metalmdsquash/module-setup.sh) for the full list of module and driver dependencies.
+
+##### `metal.server=http://pit/$hostname`
+
+> The endpoint to fetch artifacts from. Can be any protocol defined in [`metal-genrules.sh`](./90metalmdsquash/metal-genrules.sh).
+>
+> **NOTE**: Omitting this value entirely will disable the (re)build function of this dracut module.
+
+# RootFS and the Persistent OverlayFS
 
 ### What is a Persistent Overlay?
 
