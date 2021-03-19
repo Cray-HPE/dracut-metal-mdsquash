@@ -1,4 +1,5 @@
 #!/bin/bash
+
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 
 [ "${metal_debug:-0}" = 1 ] && echo "$@" && set -x
@@ -61,18 +62,16 @@ case "$root" in
         sqfs_drive_scheme=${sqfs_drive_spec%%=*}
         sqfs_drive_authority=${sqfs_drive_spec#*=}
         ;;
+    kdump)
+        info "kdump detected. continuing..."
+        ;;
 esac
-[ "${sqfs_drive_scheme}" = 'CDLABEL' ] && sqfs_drive_scheme=LABEL
+[ "${sqfs_drive_scheme}" = 'CDLABEL' ] || sqfs_drive_scheme=LABEL
 
 # Export SquashFS drive information to dracut environment.
 case $sqfs_drive_scheme in
     PATH | path | UUID | uuid | LABEL | label)
         info "SquashFS file is on ${sqfs_drive_scheme}=${sqfs_drive_authority}"
-        ;;
-    # exit so the module doesn't continue on
-    kdump)
-        info "kdump detected. exiting without error"
-        exit 0
         ;;
     *)
         warn "Unsupported sqfs-drive-scheme ${sqfs_drive_scheme}"
@@ -234,6 +233,11 @@ fetch_sqfs() {
 ## SquashFS
 # Add a local file to squashFS storage.
 add_sqfs() {
+    if [ $root = "kdump" ]; then
+    echo "skipping metal-phone-home for kdump..."
+    exit 0
+    fi
+
     local sqfs_store=/squashfs_management
     if [ "${metal_uri_scheme}" != "file" ]; then
         tmp1="${metal_authority_path#//}" # Chop the double slash prefix
