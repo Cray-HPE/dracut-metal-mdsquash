@@ -3,7 +3,8 @@
 The Metal MDSquash dracut module lives in the initramFS, used during a server's boot. Within the initramFS, `metalmdsquash` does three things:
 - It creates an mdraid array and sets up three partition
 - It fetches a squashFS file from a given endpoint
-- It creates a persistent overlayFS for the squashFS image 
+- It creates a persistent overlayFS for the squashFS image
+- Lastly, an LVM is created on the final partition for cloud-init and other high-level hand-off
 
 > For more information on Dracut, the initramFS creation tool, see here: https://github.com/dracutdevs/dracut
 
@@ -11,14 +12,14 @@ Variable by customization arguments, the redundant storage will provision mirror
 will contain 3 partitions; a partition for storing the fallback bootloader, another for storing squashFS images, and a final one for
 storing persistent overlays.
 
-> For information on partitioning and disks in Shasta, see [PARTITIONING](https://stash.us.cray.com/projects/MTL/repos/docs-csm-install/browse/104-NCN-PARTITIONING.md).
+> For information on partitioning and disks in Shasta, see [NCN Partitioning](https://stash.us.cray.com/projects/MTL/repos/docs-csm-install/browse/104-NCN-PARTITIONING.md).
 
 #### Table of Contents
 
 - [Requirements](#requirements)
 - [Usage](#usage)
 - [URI Drivers](#uri-drivers)
-- [Module Customization](#module-customization)
+- [Kernel Parameters](#kernel-parameters)
 - [RootFS and the Persistent OverlayFS](#rootfs-and-the-persistent-overlayfs)
 
 ## Requirements
@@ -38,7 +39,7 @@ metal.server=<URI> root=live:LABEL=SQFSRAID rd.live.squashimg=filesystem.squashf
 ```
 
 The above snippet is the minimal cmdline necessary for this module to function. Additional options 
-are denoted throughout the [module customization](#module-customization) section.
+are denoted throughout the [module customization](#customizable-parameters) section.
 
 ## URI Drivers
 
@@ -59,33 +60,55 @@ path values will tell the module where to look for SquashFS. Only those parts of
 
 Other drivers, such as native `s3`, `scp`, and `ftp` could be _added_.
 
-These drivers schemes are all defined by the rule generator, [`metal-genrules.sh`](./metal-genrules.sh).
+These drivers schemes are all defined by the rule generator, [`metal-genrules.sh`](./90metalmdsquash/metal-genrules.sh).
 
 # Parameters
 
 **The assigned value denotes the default value when the option is omitted on the cmdline.**
 
-## Customizable Parameters
+## Kernel Parameters
 
 ### metal-mdsquash customizations
 
-##### `metal.debug=0`
-> Enables debug output, verbosely prints the creation of the RAIDs and fetching of the squashFS image.
-> Set this to any non-zero to enable debugging.
+##### `metal.debug`
+> - `Default: 0`
+> 
+> Set `metal.debug=1` to enable debug output from only metal modules. This will verbosely print the creation of the RAIDs and fetching of the squashFS image.
 
-##### `metal.disks=2`
+##### `metal.disks`
+> - `Default: 2`
+> 
 > Specify the number of disks to use in the local mirror (RAID-1).
 
-##### `metal.md-level=mirror`
+##### `metal.md-level`
+> - `Default: mirror`
+> 
 > Change the level passed to mdadm for RAID creation, possible values are any value it takes. 
 > Milaege varies, buyer beware this could dig a hole deeper.
 
-##### `metal.no-wipe=0`
-> If this is set to 1, then the existing partition table will remain untouched. No new partitons
-> are created and no new RAIDs. Only set this if the current layout works, i.e. the client 
-> already has the right partitions and a bootable ROM.
+##### `metal.no-wipe`
+> - `Default: 0`
+> 
+> If this is set to `metal.no-wipe=1`, then all destructive behavior is disabled. The metal modules will either use what they find or make 0 changes during boots. This is insurance, it should not be required. This is helpful for development, or for admins tracking old and new nodes.
 
-##### `metal.sqfs-md-size=100`
+##### `metal.sqfs-md-size`
+> - Default: `25`
+> - Unit: Gigabytes
+> 
+> Set the size for the new SQFS partition.
+> Buyer beware this does not resize, this applies for new partitions.
+
+##### `metal.oval-md-size`
+> - Default: `150`
+> - Unit: Gigabytes
+> 
+> Set the size for the new SQFS partition.
+> Buyer beware this does not resize, this applies for new partitions.
+
+##### `metal.aux-md-size`
+> - Default: `150`
+> - Unit: Gigabytes
+>
 > Set the size for the new SQFS partition.
 > Buyer beware this does not resize, this applies for new partitions.
 
@@ -93,39 +116,55 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 reference: [dracut dmsquashlive cmdline](1)
 
-##### `rd.live.dir=LiveOS`
-> Specify the dir to use within the squashFS reserved area.
+##### `rd.live.dir`
+> - `Default: LiveOS`
+> 
+> Name of the directory store and load the artifacts from. Changing this value will affect metal and native-dracut.
 
-##### `root=live:CDLABEL=SQFSRAID`
+##### `root`
+> - `Default: live:LABEL=SQFSRAID`
+> 
 > Specify the FSlabel of the block device to use for the SQFS storage. This could be an existing RAID or non-RAIDed device.
 > If a label is not found in `/dev/disk/by-label/*`, then the os-disks are paved with a new mirror array.
 > Can also be of UUID or 
 
-##### `rd.live.overlay=LABEL=ROOTRAID`
+##### `rd.live.overlay`
+> - `Default: LABEL=ROOTRAID`
+> 
 > Specify the FSlabel of the block device to use for persistent storage.
 > If a label is not found in `/dev/disk/by-label/*`, then the os-disks are paved.
 > If this is specified, then rd.live.overlay=$newlabel must also be specified.
 
-##### `rd.live.overlay.readonly=0`
+##### `rd.live.overlay.readonly`
+> - `Default: 0`
+> 
 > Make the persistent overlayFS read-only.
 
-##### `rd.live.overlay.reset=0`
+##### `rd.live.overlay.reset`
+> - `Default: 0`
+> 
 > Reset the persistent overlayFS, regardless if it is read-only.
-> Note: If this is 1, but `metal.no-wipe=1` too then this will not remake the persistent image file
-> but dmsquash-live may still reset the contents. The overlay just won't be
-> reformatted `metal.no-wipe=1`.
+> On the **next** boot the overlayFS will clear itself, it will continue to clear itself every
+> reboot until this is unset. This does not remake the RAID, this remakes the OverlayFS. Metal only
+> provides the underlying array, and the parent directory structure necessary for an OverlayFS to detect the array as compatible.
 
-##### `rd.live.overlay.size=204800`
+##### `rd.live.overlay.size`
+> - `Default: 204800`
+> 
 > Specify the size of the overlay in MB.
 
-##### `rd.live.squashimg=filesystem.squashfs`
+##### `rd.live.squashimg`
+> - `Default: filesystem.squashfs`
+> 
 > Specify the filename to refer to download.
 
 ### dracut : standard customizations
 
 notereference: [dracut standard cmdline](2)
 
-##### `rootfallback=LABEL=BOOTRAID`
+##### `rootfallback`
+> - `Default: LABEL=BOOTRAID`
+> 
 > This the label for the partition to be used for a fallback bootloader.
 
 ## Required Parameters

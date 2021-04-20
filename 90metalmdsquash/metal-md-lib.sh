@@ -14,10 +14,10 @@ live_dir=$(getarg rd.live.dir -d live_dir)
 initrd=$(getarg initrd=)
 [ -z "${initrd}" ] && initrd="initrd.img.xz"
 
-overlay_size=$(getarg rd.live.overlay.size=)
-[ -z "$overlay_size" ] && overlay_size=32768
-
-metal_sqfsmdsize=$(getargnum 100 25 150 metal.sqfs-md-size)
+# these use getargnum from /lib/dracut-lib.sh; <default> <min> <max>
+metal_sqfsmdsize=$(getargnum 25 25 100 metal.sqfs-md-size)
+overlay_size=$(getargnum 150 25 200 metal.oval-md-size)
+auxillary_size=$(getargnum 150 0 200 metal.aux-md-size)
 metal_mdlevel=$(getarg metal.md-level=)
 [ -z "${metal_mdlevel}" ] && metal_mdlevel=mirror
 
@@ -38,11 +38,15 @@ boot_drive_scheme=${boot_fallback%%=*}
 boot_drive_authority=${boot_fallback#*=}
 case $boot_drive_scheme in
     PATH | path | UUID | uuid | LABEL | label)
-        info "SquashFS file is on ${sqfs_drive_scheme}=${sqfs_drive_authority}"
+        info "bootloader will be located on  ${boot_drive_scheme}=${boot_drive_authority}"
+        ;;
+    '')
+        # no-op; drive disabled
+        :
         ;;
     *)
         warn "Unsupported boot-drive-scheme ${boot_drive_scheme}"
-        warn "Supported schemes: PATH, UUID, and LABEL"
+        warn "Supported schemes: PATH, UUID, and LABEL (upper and lower cases)"
         exit 1
         ;;
 esac
@@ -64,6 +68,13 @@ case "$root" in
         ;;
     kdump)
         info "kdump detected. continuing..."
+        ;;
+    '')
+        warn "No root; root needed"
+        exit 1
+        ;;
+    *)
+        warn "alien root! unrecognized root= parameter: root=${root}"
         ;;
 esac
 [ "${sqfs_drive_scheme}" = 'CDLABEL' ] || sqfs_drive_scheme=LABEL
@@ -87,9 +98,13 @@ case "$oval_drive_scheme" in
     PATH | path | UUID | uuid | LABEL | label)
         info "Overlay is on ${oval_drive_scheme}=${oval_drive_authority}"
         ;;
+    '')
+        # no-op; disabled
+        :
+        ;;
     *)
-        warn "Unsupported drive-scheme ${oval_drive_scheme}"
-        info "Supported schemes: PATH, UUID, and LABEL"
+        warn "Unsupported oval-drive-scheme ${oval_drive_scheme}"
+        info "Supported schemes: PATH, UUID, and LABEL (upper and lower cases)"
         exit 1
         ;;
 esac
@@ -138,7 +153,7 @@ make_raid_store() {
         sqfs_raid_parts="$(trim $sqfs_raid_parts) /dev/${disk}2"
     done
     # metadata=0.9 for boot files.
-    mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=1.0 --level="$metal_mdlevel" --raid-devices=$metal_disks ${boot_raid_parts} || metal_die "Failed to make filesystem on /dev/md/BOOT"
+    mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=0.9 --level="$metal_mdlevel" --raid-devices=$metal_disks ${boot_raid_parts} || metal_die "Failed to make filesystem on /dev/md/BOOT"
     mdadm --create /dev/md/SQFS --run --verbose --assume-clean --metadata=1.2 --level="$metal_mdlevel" --raid-devices=$metal_disks ${sqfs_raid_parts} || metal_die "Failed to make filesystem on /dev/md/SQFS"
 
     _trip_udev
@@ -158,12 +173,18 @@ make_raid_overlay() {
         echo 0 > /tmp/metalovaldisk.done && return
     fi
 
-    local raid_parts=''
+    local oval_raid_parts=''
+    local aux_raid_parts=''
+    local oval_end="$((overlay_size + metal_sqfsmdsize))"
+    local aux_end="$((auxillary_size + oval_end))"
     for disk in $md_disks; do
-        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfsmdsize}GB" "$((((overlay_size / 1024)) + metal_sqfsmdsize))GB"
-        raid_parts="$(trim $raid_parts) /dev/${disk}3" # FIXME: Find partition number vs hard code.
+        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfsmdsize}GB" "${oval_end}GB"
+        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary "${oval_end}GB" "${aux_end}GB"
+        oval_raid_parts="$(trim $oval_raid_parts) /dev/${disk}3" # FIXME: Find partition number vs hard code.
+        aux_raid_parts="$(trim $aux_raid_parts) /dev/${disk}4"
     done
-    mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" --raid-devices=$metal_disks ${raid_parts} || metal_die "Failed to make filesystem on /dev/md/ROOT"
+    mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" --raid-devices=$metal_disks ${oval_raid_parts} || metal_die "Failed to make filesystem on /dev/md/ROOT"
+    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" --raid-devices=$metal_disks ${aux_raid_parts} || metal_die "Failed to make filesystem on /dev/md/AUX"
 
     _trip_udev
     mkfs.xfs -f -L "${oval_drive_authority}" /dev/md/ROOT || metal_die 'Failed to format overlayFS storage.'
@@ -273,6 +294,7 @@ pave() {
 
     local doomed_disks
     local doomed_vgs='vg_name=~ceph*'
+    local doomed_metal_vgs='vg_name=~aux*'
 
     # Select the span of devices we care about; RAID, SATA, and NVME devices/handles.
     doomed_disks=$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|sata|nvme|sas)' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ')
@@ -288,6 +310,7 @@ pave() {
 
     # NUKE LVMs
     info removing all ceph volume groups of $doomed_vgs && vgremove -f --select $doomed_vgs || info 'no ceph volumes'
+    info removing all metal volume groups of $doomed_metal_vgs && vgremove -f --select $doomed_metal_vgs || info 'no metal volumes'
 
     # NUKE BLOCKs
     info wiping doomed raids and block-devices: "$doomed_disks"
