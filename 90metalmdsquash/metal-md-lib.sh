@@ -294,7 +294,7 @@ pave() {
 
     local doomed_disks
     local doomed_vgs='vg_name=~ceph*'
-    local doomed_metal_vgs='vg_name=~aux*'
+    local doomed_metal_vgs='vg_name=~metal*'
 
     # Select the span of devices we care about; RAID, SATA, and NVME devices/handles.
     doomed_disks=$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|sata|nvme|sas)' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ')
