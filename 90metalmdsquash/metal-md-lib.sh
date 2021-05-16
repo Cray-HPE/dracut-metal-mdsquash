@@ -278,7 +278,7 @@ add_sqfs() {
         umount $sqfs_store
     else
 
-        # No RAID mount, issue warning, delete mount point and return
+        # No RAID mount, issue warning, delete mount-point and return
         warn "Failed to mount /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority} at $sqfs_store"
         rmdir $sqfs_store
         return 1
@@ -287,8 +287,12 @@ add_sqfs() {
 
 ##############################################################################
 ## Pave
-# Any disk caught in this functions view will be paved in preparation for use.
-# This only targets disks that CRAY is interested in, specifically RAID, SATA, NVME
+# Any disk caught in this function's scan will be wiped. Certain aspects are
+# recoverable by experts, but only if no other function is called from this
+# library (and no reformatting has occurred).
+# This only targets disks that CRAY and its customers are interested in, specifically; RAID, SATA, NVME.
+# NOTE: THIS NEVER WILL TARGET USB or VIRTUAL MEDIA!
+# MAINTAINER NOTE DO NOT VOID THE AFOREMENTIONED STATEMENT!
 # (these are the busses this scans for from `lsblk`).
 pave() {
 
@@ -306,7 +310,7 @@ pave() {
         sleep 1 && local time_to_live=$((${time_to_live:-5} - 1)) && info "${time_to_live:-5}"
     done
 
-    # NUKES: these go in order from logical -> block -> physical.
+    # NUKES: these go in order from logical (e.g. LVM) -> block (e.g. block devices from lsblk) -> physical (e.g. RAID and other controller tertiary to their members).
 
     # NUKE LVMs
     info removing all ceph volume groups of $doomed_vgs && vgremove -f --select $doomed_vgs || info 'no ceph volumes'
