@@ -82,8 +82,12 @@ path values will tell the module where to look for SquashFS. Only those parts of
 
 - file driver
     ```bash
-    file:LABEL=MYUSB
-    file:UUID=4e457dcf-df58-4460-86b4-4dbcd19f6fc7
+    # Example: Load from another USB stick on the node.
+    file://mydir?LABEL=MYUSB
+    # Example: load a file from the root of an attached disk with the label SQFSRAID
+    file://?LABEL=SQFSRAID
+    # Example: load a file from a PIT recovery USB.
+    file://ephemeral/data/ceph/?LABEL=PITDATA
     ```
 - http or https driver
     ```bash

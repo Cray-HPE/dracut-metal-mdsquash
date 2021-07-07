@@ -1,6 +1,7 @@
 #!/bin/sh
 # Copyright 2021 Hewlett Packard Enterprise Development LP
 # metal-genrules.sh for metalmdsquash
+type metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 [ -z "${metal_debug:-0}" ] || set -x
 
@@ -11,15 +12,15 @@ case "${metal_server:-}" in
         /sbin/initqueue --settled /sbin/metal-md-disks
         ;;
     s3:*)
-        warn s3-direct is not implemented, try http/https instead
+        metal_die s3-direct is not implemented, try http/https instead
         ;;
     ftp:*)
-        warn insecure ftp is not implemented
+        metal_die insecure ftp is not implemented
         ;;
     scp:*|sftp:*)
-        warn "credential based transfer (scp and sftp) is not implemented, try http/https instead"
+        metal_die "credential based transfer (scp and sftp) is not implemented, try http/https instead"
         ;;
     *)
-        info Unknown driver "$metal_server"; metal.server ignored/discarded
+        warn Unknown driver "$metal_server"; metal.server ignored/discarded
         ;;
 esac

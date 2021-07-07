@@ -5,8 +5,11 @@
 # DEVICES EXIST or DIE
 ls /dev/sd* > /dev/null 2>&1 || exit 1
 
+# If disks exist then it's worthwhile to load libraries.
+type metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
+type pave > /dev/null 2>&1 || . /lib/metal-md-lib.sh
+
 # PRELIMINARY SCAN
-type metal_die > /dev/null 2>&1 || . /lib/metal-md-lib.sh
 /sbin/metal-md-scan
 [ -z "${metal_server:-}" ] && exit 0
 

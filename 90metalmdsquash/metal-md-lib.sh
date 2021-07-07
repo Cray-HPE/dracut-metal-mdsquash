@@ -5,37 +5,56 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${metal_debug:-0}" = 1 ] && echo "$@" && set -x
 
 type getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
+type metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 # Honor and obey dmsquash parameters, if a user sets a different rd.live.dir on the cmdline then it
 # should be reflected here as well.
-live_dir=$(getarg rd.live.dir -d live_dir)
-[ -z "${live_dir}" ] && live_dir="LiveOS"
 
+# allow the initrd to change names
 initrd=$(getarg initrd=)
 [ -z "${initrd}" ] && initrd="initrd.img.xz"
 
 # these use getargnum from /lib/dracut-lib.sh; <default> <min> <max>
-metal_sqfsmdsize=$(getargnum 25 25 100 metal.sqfs-md-size)
-overlay_size=$(getargnum 150 25 200 metal.oval-md-size)
-auxillary_size=$(getargnum 150 0 200 metal.aux-md-size)
+metal_sqfs_size_end=$(getargnum 25 25 100 metal.sqfs-md-size)
+overlay_size_end=$(getargnum 150 25 200 metal.oval-md-size)
+auxillary_size_end=$(getargnum 150 0 200 metal.aux-md-size)
+
+# this is passed to mdadm during creation; default is redundant mirrors
 metal_mdlevel=$(getarg metal.md-level=)
 [ -z "${metal_mdlevel}" ] && metal_mdlevel=mirror
 
+# directory to download new artifacts to, and look for old artifacts in.
+live_dir=$(getarg rd.live.dir -d live_dir)
+[ -z "${live_dir}" ] && live_dir="LiveOS"
+
+# name of the squashFS file to download from metal.server, or to look for inside of rd.live.dir
 squashfs_file=$(getarg rd.live.squashimg=)
 [ -z "${squashfs_file}" ] && squashfs_file=filesystem.squashfs
+
+# Safeguard, if the hostname is missing - try searching for a vanilla filesystem.squashfs file.
 [ "${squashfs_file}" = '.squashfs' ] && squashfs_file=filesystem.squashfs
-metal_squashfsurl="${metal_server%%/}/${squashfs_file}"
-IFS=':' read -ra ADDR <<< "$metal_squashfsurl"
-metal_uri_scheme=${metal_squashfsurl%%:*}
-metal_authority_path=${metal_squashfsurl#*:}
-if [ -z "${metal_uri_scheme}" ] || [ -z "${metal_authority_path}" ]; then
-    metal_die "Failed to parse the scheme, authority, and path for URI ${metal_squashfsurl}"
+
+if [[ -n "$metal_server" ]]; then
+    # this works for breaking the protocol off and finding the base path.
+    IFS=':' read -ra ADDR <<< "$metal_server"
+    metal_uri_scheme=${metal_server%%:*}
+    metal_uri_authority=${metal_server#*:}
+    if [ -z "${metal_uri_scheme}" ] || [ -z "${metal_uri_authority}" ]; then
+        metal_die "Failed to parse the scheme, authority, and path for URI ${metal_server}"
+    fi
+
+    # these local vars are only used for file copies, in http|https they're not used at all.
+    metal_local_dir=${metal_uri_authority%%\?*}
+    metal_local_url=${metal_server#*\?}
+    metal_local_url_authority=${metal_local_url#*=}
 fi
 
-# Grub / Fallback.
+# rootfallback may be empty, if it is then this block will ignore.
 boot_fallback=$(getarg rootfallback=)
 boot_drive_scheme=${boot_fallback%%=*}
+[ -z "$boot_drive_scheme" ] && boot_drive_scheme=LABEL
 boot_drive_authority=${boot_fallback#*=}
+[ -z "$boot_drive_authority" ] && boot_drive_authority=BOOTRAID
 case $boot_drive_scheme in
     PATH | path | UUID | uuid | LABEL | label)
         info "bootloader will be located on  ${boot_drive_scheme}=${boot_drive_authority}"
@@ -45,14 +64,12 @@ case $boot_drive_scheme in
         :
         ;;
     *)
-        warn "Unsupported boot-drive-scheme ${boot_drive_scheme}"
-        warn "Supported schemes: PATH, UUID, and LABEL (upper and lower cases)"
-        exit 1
+        metal_die "Unsupported boot-drive-scheme ${boot_drive_scheme} Supported schemes: PATH, UUID, and LABEL (upper and lower cases)"
         ;;
 esac
 
+# root must never be empty; if it is then nothing will boot - dracut will never find anything todo.
 root=$(getarg root)
-# SquashFS Storage
 case "$root" in
     live:/dev/*)
         sqfs_drive_url=${root///dev\/disk\/by-}
@@ -70,24 +87,23 @@ case "$root" in
         info "kdump detected. continuing..."
         ;;
     '')
-        warn "No root; root needed"
-        exit 1
+        warn "No root; root needed - the system will likely fail to boot."
+        # do not fail, allow dracut to handle everything in case an operator/admin is doing something.
         ;;
     *)
         warn "alien root! unrecognized root= parameter: root=${root}"
         ;;
 esac
+# support CDLABEL by overriding it to LABEL, CDLABEL only means anything in other dracut modules
+# and those modules will parse it out of root= (not our variable) - normalize it in our context.
 [ "${sqfs_drive_scheme}" = 'CDLABEL' ] || sqfs_drive_scheme=LABEL
-
-# Export SquashFS drive information to dracut environment.
+[ -z "${sqfs_drive_authority}" ] && sqfs_drive_scheme=SQFSRAID
 case $sqfs_drive_scheme in
     PATH | path | UUID | uuid | LABEL | label)
         info "SquashFS file is on ${sqfs_drive_scheme}=${sqfs_drive_authority}"
         ;;
     *)
-        warn "Unsupported sqfs-drive-scheme ${sqfs_drive_scheme}"
-        warn "Supported schemes: PATH, UUID, and LABEL"
-        exit 1
+        metal_die "Unsupported sqfs-drive-scheme ${sqfs_drive_scheme}\nSupported schemes: PATH, UUID, and LABEL"
         ;;
 esac
 
@@ -108,22 +124,6 @@ case "$oval_drive_scheme" in
         exit 1
         ;;
 esac
-
-_trip_udev() {
-    udevadm settle >&2
-}
-
-_overlayFS_path_spec() {
-    echo "overlay-${sqfs_drive_authority}-$(blkid -s UUID -o value /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority})"
-}
-
-##############################################################################
-## Die.
-metal_die() {
-    echo "metal_die: $*"
-    sleep 30 # Leave time for console/log buffers to catch up.
-    die
-}
 
 ##############################################################################
 ## SquashFS Storage
@@ -147,7 +147,7 @@ make_raid_store() {
     for disk in $md_disks; do
         parted --wipesignatures -m --align=opt --ignore-busy -s "/dev/$disk" -- mklabel gpt \
             mkpart esp fat32 2048s 500MB set 1 esp on \
-            mkpart primary xfs 500MB "${metal_sqfsmdsize}GB"
+            mkpart primary xfs 500MB "${metal_sqfs_size_end}GB"
         _trip_udev
         boot_raid_parts="$(trim $boot_raid_parts) /dev/${disk}1"
         sqfs_raid_parts="$(trim $sqfs_raid_parts) /dev/${disk}2"
@@ -175,10 +175,10 @@ make_raid_overlay() {
 
     local oval_raid_parts=''
     local aux_raid_parts=''
-    local oval_end="$((overlay_size + metal_sqfsmdsize))"
-    local aux_end="$((auxillary_size + oval_end))"
+    local oval_end="$((overlay_size_end + metal_sqfs_size_end))"
+    local aux_end="$((auxillary_size_end + oval_end))"
     for disk in $md_disks; do
-        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfsmdsize}GB" "${oval_end}GB"
+        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfs_size_end}GB" "${oval_end}GB"
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary "${oval_end}GB" "${aux_end}GB"
         oval_raid_parts="$(trim $oval_raid_parts) /dev/${disk}3" # FIXME: Find partition number vs hard code.
         aux_raid_parts="$(trim $aux_raid_parts) /dev/${disk}4"
@@ -220,26 +220,28 @@ add_overlayfs() {
 fetch_sqfs() {
     # TODO: Add md5 check - this may vary between Artifactory/bootstrap and s3/production artifacts at the present time.
     [ -f "$1/${squashfs_file}" ] && echo 0 > /tmp/metalsqfsimg.done && return
+    [ -z "$metal_server" ] && warn 'No metal.server=, nothing to download or copy' && echo 0 > /tmp/metalsqfsimg.done && return
     if [ "${metal_uri_scheme}" != "file" ]; then
         (
             set -e
             cd "$1"
-            curl -O "${metal_squashfsurl}" > /dev/null 2>&1 && info "${squashfs_file} downloaded  ... "
-            curl -O "${metal_server}/kernel" > /dev/null 2>&1 && info 'grabbed the kernel it rode in on ... '
-            curl -O "${metal_server}/${initrd}" > /dev/null 2>&1 && info 'and its initrd ... '
+            curl -O "${metal_server}/${squashfs_file}" > /dev/null 2>&1 && echo >2 "${squashfs_file} downloaded  ... "
+            curl -O "${metal_server}/kernel" > /dev/null 2>&1 && echo >2 'grabbed the kernel it rode in on ... '
+            curl -O "${metal_server}/${initrd}" > /dev/null 2>&1 && echo >2 'and its initrd ... '
         ) || warn 'Failed to download ; may retry'
     else
         # File support; copy the authority to tmp; tmp auto-clears on root-pivot.
-        mkdir -vp /tmp/source
+        [ -z "$metal_local_url_authority" ] && metal_die "Missing LABEL=<FSLABEL> on $metal_server"
 
         # Mount read-only to prevent harm to the device; we literally just need to pull the files off it.
-        mount -n -o ro "/dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority}" /tmp/source
+        mkdir -vp /tmp/source
+        mount -n -o ro -L "$metal_local_url_authority" /tmp/source || metal_die "Failed to mount $metal_local_url_authority from $metal_server"
         (
             set -e
             cd "$1"
-            cp -pv "/tmp/source/${metal_squashfsurl#//}" . && info "copied ${squashfs_file} ... "
-            cp -pv "/tmp/source/${metal_squashfsurl#//}/kernel" . && info 'grabbed the kernel we rode in on ... '
-            cp -pv "/tmp/source/${metal_squashfsurl#//}${initrd}" . && info 'and its initrd ... '
+            cp -pv "/tmp/source/${metal_local_dir#//}/${squashfs_file}" . && echo >2 "copied ${squashfs_file} ... "
+            cp -pv "/tmp/source/${metal_local_dir#//}/kernel" . && echo >2 'grabbed the kernel we rode in on ... '
+            cp -pv "/tmp/source/${metal_local_dir#//}${initrd}" . && echo >2 'and its initrd ... '
         ) || warn 'Failed to copy ; may retry'
         umount /tmp/source
     fi
@@ -254,20 +256,21 @@ fetch_sqfs() {
 ## SquashFS
 # Add a local file to squashFS storage.
 add_sqfs() {
+    # todo: this could maybe move into metal-genrules.sh, preventing any call under kdump.
     if [ $root = "kdump" ]; then
-    echo "skipping metal-phone-home for kdump..."
-    exit 0
+        echo "skipping metal-phone-home for kdump..."
+        return 0
     fi
 
     local sqfs_store=/squashfs_management
     if [ "${metal_uri_scheme}" != "file" ]; then
-        tmp1="${metal_authority_path#//}" # Chop the double slash prefix
+        tmp1="${metal_uri_authority#//}" # Chop the double slash prefix
         tmp2="${tmp1%%/*}"                # Chop the trailing path
         uri_host="${tmp2%%:*}"            # Chop any port number
         if ping -c 5 "${uri_host}" > /dev/null 2>&1; then
             info "URI host ${uri_host} responds ..."
         else
-            info "Failed to ping URI host, ${uri_host}, will retry later"
+            warn "Failed to ping URI host, ${uri_host:-UNDEFINED}, will retry later"
             return 1
         fi
     fi
@@ -279,9 +282,7 @@ add_sqfs() {
     else
 
         # No RAID mount, issue warning, delete mount-point and return
-        warn "Failed to mount /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority} at $sqfs_store"
-        rmdir $sqfs_store
-        return 1
+        metal_die "Failed to mount /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority} at $sqfs_store"
     fi
 }
 
@@ -290,36 +291,46 @@ add_sqfs() {
 # Any disk caught in this function's scan will be wiped. Certain aspects are
 # recoverable by experts, but only if no other function is called from this
 # library (and no reformatting has occurred).
-# This only targets disks that CRAY and its customers are interested in, specifically; RAID, SATA, NVME.
+# This only targets disks that CRAY and its customers are interested in, specifically; RAID, SATA, NVME, and SAS devices/handles.
 # NOTE: THIS NEVER WILL TARGET USB or VIRTUAL MEDIA!
 # MAINTAINER NOTE DO NOT VOID THE AFOREMENTIONED STATEMENT!
 # (these are the busses this scans for from `lsblk`).
 pave() {
+    if [ "$metal_nowipe" != 0 ]; then
+        warn 'local storage device wipe [ safeguard ENABLED  ]'
+        warn 'local storage devices will not be wiped.'
+        echo 0 > /tmp/metalpave.done && return 0
+    else
+        warn 'local storage device wipe [ safeguard DISABLED ]'
+    fi
+    warn 'local storage device wipe commencing ...'
 
     local doomed_disks
-    local doomed_vgs='vg_name=~ceph*'
+    local doomed_ceph_vgs='vg_name=~ceph*'
     local doomed_metal_vgs='vg_name=~metal*'
 
-    # Select the span of devices we care about; RAID, SATA, and NVME devices/handles.
+    # Select the span of devices we care about; RAID, SATA, NVME, and SAS devices/handles.
     doomed_disks=$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|sata|nvme|sas)' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ')
     [ -z "$doomed_disks" ] && echo 0 > /tmp/metalpave.done && return 0
 
-    info nothing can be done to stop this except one one thing...
-    info ...power this node off within the next 5 seconds to prevent any and all operations...
+    warn nothing can be done to stop this except one one thing...
+    warn ...power this node off within the next 5 seconds to prevent any and all operations...
     while [ "${time_to_live:-5}" -gt 0 ]; do
-        sleep 1 && local time_to_live=$((${time_to_live:-5} - 1)) && info "${time_to_live:-5}"
+        [ "${time_to_live}" = 2 ] && unit='second' || unit='seconds'
+        sleep 1 && local time_to_live=$((${time_to_live:-5} - 1)) && echo "${time_to_live:-5} $unit"
     done
 
     # NUKES: these go in order from logical (e.g. LVM) -> block (e.g. block devices from lsblk) -> physical (e.g. RAID and other controller tertiary to their members).
 
     # NUKE LVMs
-    info removing all ceph volume groups of $doomed_vgs && vgremove -f --select $doomed_vgs || info 'no ceph volumes'
-    info removing all metal volume groups of $doomed_metal_vgs && vgremove -f --select $doomed_metal_vgs || info 'no metal volumes'
+    for volume_group in $doomed_ceph_vgs $doomed_metal_vgs; do
+        warn removing all volume groups of name \'$volume_group\' && vgremove -f --select $volume_group -y >/dev/null 2>&1 || warn no $volume_group volumes found
+    done
 
     # NUKE BLOCKs
-    info wiping doomed raids and block-devices: "$doomed_disks"
+    warn local storage devie wipe targeted devices: "$doomed_disks"
     for doomed_disk in $doomed_disks; do
-        wipefs --all --force "$doomed_disk" 2> /dev/null || info failed to wipe doomed disk
+        wipefs --all --force "$doomed_disk" 2> /dev/null
     done
 
     # NUKE RAIDs
@@ -327,5 +338,5 @@ pave() {
 
     _trip_udev
 
-    info disk cleanslate achieved && echo 1 > /tmp/metalpave.done
+    warn local storage disk wipe complete && echo 1 > /tmp/metalpave.done
 }

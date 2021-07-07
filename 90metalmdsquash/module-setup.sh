@@ -23,9 +23,10 @@ installkernel() {
 
 # called by dracut
 install() {
-    inst_multiple curl head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs parted sort
+    inst_multiple curl head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs parted sort wc
     # install our callables
     inst_simple "$moddir/metal-md-lib.sh" "/lib/metal-md-lib.sh"
+    inst_simple "$moddir/metal-lib.sh" "/lib/metal-lib.sh"
     inst_script "$moddir/metal-md-disks.sh" /sbin/metal-md-disks
     inst_script "$moddir/metal-md-scan.sh" /sbin/metal-md-scan
     # install our hooks
