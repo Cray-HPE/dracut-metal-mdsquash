@@ -1,4 +1,3 @@
-
 <a name="metal-90mdsquash---redundant-squashfs-and-overlayfs-storage"></a>
 # METAL 90mdsquash - redundant squashFS and overlayFS storage
 
@@ -16,6 +15,7 @@ storing persistent overlays.
 
 > For information on partitioning and disks in Shasta, see [NCN Partitioning](https://stash.us.cray.com/projects/MTL/repos/docs-csm-install/browse/104-NCN-PARTITIONING.md).
 
+<a name="table-of-contents"></a>
 #### Table of Contents
 
 * [METAL 90mdsquash - redundant squashFS and overlayFS storage](README.md#metal-90mdsquash---redundant-squashfs-and-overlayfs-storage)
@@ -53,8 +53,7 @@ storing persistent overlays.
     * [Toggling Resetting the Persistent OverlayFS on Boot](README.md#toggling-resetting-the-persistent-overlayfs-on-boot)
 
 
-
-<a name="table-of-contents"></a>
+<a name="requirements"></a>
 ## Requirements
 
 In order to use this dracut module, you need:
@@ -63,8 +62,7 @@ In order to use this dracut module, you need:
 2. Physical block devices must be installed in your blade(s).
 3. Two physical disk of 0.5TiB or less (or the RAID must be overridden, see [module customization](#module-customization)
 
-
-<a name="requirements"></a>
+<a name="usage"></a>
 ## Usage
 
 Specify a local disk device for storing images, and the URL/endpoint to fetch images from.
@@ -76,8 +74,7 @@ metal.server=<URI> root=live:LABEL=SQFSRAID rd.live.squashimg=filesystem.squashf
 The above snippet is the minimal cmdline necessary for this module to function. Additional options 
 are denoted throughout the [module customization](#parameters) section.
 
-
-<a name="usage"></a>
+<a name="uri-drivers"></a>
 ## URI Drivers
 
 The URI scheme, authority, and
@@ -99,36 +96,30 @@ Other drivers, such as native `s3`, `scp`, and `ftp` could be _added_.
 
 These drivers schemes are all defined by the rule generator, [`metal-genrules.sh`](./90metalmdsquash/metal-genrules.sh).
 
-
-<a name="uri-drivers"></a>
+<a name="parameters"></a>
 # Parameters
 
 **The assigned value denotes the default value when the option is omitted on the cmdline.**
 
-
-<a name="parameters"></a>
+<a name="kernel-parameters"></a>
 ## Kernel Parameters
 
-
-<a name="kernel-parameters"></a>
+<a name="metal-mdsquash-customizations"></a>
 ### metal-mdsquash customizations
 
-
-<a name="metal-mdsquash-customizations"></a>
+<a name="metaldebug"></a>
 ##### `metal.debug`
 > - `default: 0`
 > 
 > Set `metal.debug=1` to enable debug output from only metal modules. This will verbosely print the creation of the RAIDs and fetching of the squashFS image.
 
-
-<a name="metaldebug"></a>
+<a name="metaldisks"></a>
 ##### `metal.disks`
 > - `default: 2`
 > 
 > Specify the number of disks to use in the local mirror (RAID-1).
 
-
-<a name="metaldisks"></a>
+<a name="metalmd-level"></a>
 ##### `metal.md-level`
 > - `default: mirror`
 > 
@@ -136,14 +127,14 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 > Milaege varies, buyer beware this could dig a hole deeper.
 
 
-<a name="metalmd-level"></a>
+<a name="metalno-wipe"></a>
 ##### `metal.no-wipe`
 > - `default: 0`
 > 
 > If this is set to `metal.no-wipe=1`, then all destructive behavior is disabled. The metal modules will either use what they find or make 0 changes during boots. This is insurance, it should not be required. This is helpful for development, or for admins tracking old and new nodes.
 
 
-<a name="metalno-wipe"></a>
+<a name="metalsqfs-md-size"></a>
 ##### `metal.sqfs-md-size`
 > - default: `25`
 > - Unit: Gigabytes
@@ -152,7 +143,7 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 > Buyer beware this does not resize, this applies for new partitions.
 
 
-<a name="metalsqfs-md-size"></a>
+<a name="metaloval-md-size"></a>
 ##### `metal.oval-md-size`
 > - default: `150`
 > - Unit: Gigabytes
@@ -161,7 +152,7 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 > Buyer beware this does not resize, this applies for new partitions.
 
 
-<a name="metaloval-md-size"></a>
+<a name="metalaux-md-size"></a>
 ##### `metal.aux-md-size`
 > - default: `150`
 > - Unit: Gigabytes
@@ -170,20 +161,19 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 > Buyer beware this does not resize, this applies for new partitions.
 
 
-<a name="metalaux-md-size"></a>
+<a name="dmsquashlive-customizations"></a>
 ### dmsquashlive customizations
 
 reference: [dracut dmsquashlive cmdline](1)
 
 
-<a name="dmsquashlive-customizations"></a>
+<a name="rdlivedir"></a>
 ##### `rd.live.dir`
 > - `default: LiveOS`
 > 
 > Name of the directory store and load the artifacts from. Changing this value will affect metal and native-dracut.
 
-
-<a name="rdlivedir"></a>
+<a name="root"></a>
 ##### `root`
 > - `default: live:LABEL=SQFSRAID`
 > 
@@ -191,8 +181,7 @@ reference: [dracut dmsquashlive cmdline](1)
 > If a label is not found in `/dev/disk/by-label/*`, then the os-disks are paved with a new mirror array.
 > Can also be of UUID or 
 
-
-<a name="root"></a>
+<a name="rdliveoverlay"></a>
 ##### `rd.live.overlay`
 > - `default: LABEL=ROOTRAID`
 > 
@@ -200,15 +189,13 @@ reference: [dracut dmsquashlive cmdline](1)
 > If a label is not found in `/dev/disk/by-label/*`, then the os-disks are paved.
 > If this is specified, then rd.live.overlay=$newlabel must also be specified.
 
-
-<a name="rdliveoverlay"></a>
+<a name="rdliveoverlay.readonly"></a>
 ##### `rd.live.overlay.readonly`
 > - `default: 0`
 > 
 > Make the persistent overlayFS read-only.
 
-
-<a name="rdliveoverlay.readonly"></a>
+<a name="rdliveoverlayreset"></a>
 ##### `rd.live.overlay.reset`
 > - `default: 0`
 > 
@@ -217,69 +204,62 @@ reference: [dracut dmsquashlive cmdline](1)
 > reboot until this is unset. This does not remake the RAID, this remakes the OverlayFS. Metal only
 > provides the underlying array, and the parent directory structure necessary for an OverlayFS to detect the array as compatible.
 
-
-<a name="rdliveoverlayreset"></a>
+<a name="rdliveoverlaysize"></a>
 ##### `rd.live.overlay.size`
 > - `default: 204800`
 > 
 > Specify the size of the overlay in MB.
 
-
-<a name="rdliveoverlaysize"></a>
+<a name="rdlivesquashimg"></a>
 ##### `rd.live.squashimg`
 > - `default: filesystem.squashfs`
 > 
 > Specify the filename to refer to download.
 
-
-<a name="rdlivesquashimg"></a>
+<a name="dracut--standard-customizations"></a>
 ### dracut : standard customizations
 
 notereference: [dracut standard cmdline](2)
 
-
-<a name="dracut--standard-customizations"></a>
+<a name="rootfallback"></a>
 ##### `rootfallback`
 > - `default: LABEL=BOOTRAID`
 > 
 > This the label for the partition to be used for a fallback bootloader.
 
-
-<a name="rootfallback"></a>
+<a name="required-parameters"></a>
 ## Required Parameters
 
 The following parameters are required for this module to work, however they belong to the native dracut space.
 
 > See [`module-setup.sh`](./90metalmdsquash/module-setup.sh) for the full list of module and driver dependencies.
 
-
-<a name="required-parameters"></a>
+<a name="metal.server"></a>
 ##### `metal.server`
 
 > The endpoint to fetch artifacts from. Can be any protocol defined in [`metal-genrules.sh`](./90metalmdsquash/metal-genrules.sh).
 >
 > **NOTE**: Omitting this value entirely will disable the (re)build function of this dracut module.
 
-
-<a name="metal.server"></a>
+<a name="rootfs-and-the-persistent-overlayfs"></a>
 # RootFS and the Persistent OverlayFS
 
 
-<a name="rootfs-and-the-persistent-overlayfs"></a>
+<a name="what-is-a-persistent-overlay"></a>
 ### What is a Persistent Overlay?
 
 The idea of persistence is that changes _persist_ across reboots, when the state of the machine
 changes it preserves information.
 
 
-<a name="what-is-a-persistent-overlay"></a>
+<a name="feature-toggles"></a>
 ## Feature Toggles
 
 Metal squashFS URL Dracut module has a few feature toggles, by default it is recommended to leave
 them alone unless you must change them for your environment.
 
 
-<a name="feature-toggles"></a>
+<a name="toggling-persistence"></a>
 ### Toggling Persistence
 
 Disable the overlayFS entirely by setting `rd.live.overlay=0`, this will cause a temporary overlay
@@ -287,8 +267,7 @@ to be created that exists in memory. A prompt may appear during boot to acknowle
 
 To disable it entirely, delete all `rd.live.overlay.*` options.
 
-
-<a name="toggling-persistence"></a>
+<a name="toggling-read-only-overlayfs"></a>
 ### Toggling Read-Only OverlayFS
 
 Setting `rd.live.readonly=1` will cause the next boot's persistent overlayFS to be mounted
@@ -308,7 +287,7 @@ system pending certain toggles:
   overlay, in order to complete the booted root filesystem.
 
 
-<a name="toggling-read-only-overlayfs"></a>
+<a name="toggling-resetting-the-persistent-overlayfs-on-boot"></a>
 ### Toggling Resetting the Persistent OverlayFS on Boot
 
 To cleanly reset the overlayFS, reboot the node with this kernel option:
