@@ -16,7 +16,7 @@ Packager: <doomslayer@hpe.com>
 Release: %(echo ${BUILD_METADATA})
 Vendor: Cray HPE
 Version: %{x_y_z}
-Source: %{source_name}.tar.bz2
+Source: %{source_name}-%{version}.tar.bz2
 BuildArch: noarch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
 Group: System/Management
