@@ -313,8 +313,8 @@ pave() {
     # NUKES: these go in order from logical (e.g. LVM) -> block (e.g. block devices from lsblk) -> physical (e.g. RAID and other controller tertiary to their members).
 
     # NUKE LVMs
-    info removing all ceph volume groups of $doomed_vgs && vgremove -f --select $doomed_vgs || info 'no ceph volumes'
-    info removing all metal volume groups of $doomed_metal_vgs && vgremove -f --select $doomed_metal_vgs || info 'no metal volumes'
+    info removing all ceph volume groups of $doomed_vgs && vgremove -f --select $doomed_vgs -y || info 'no ceph volumes'
+    info removing all metal volume groups of $doomed_metal_vgs && vgremove -f --select $doomed_metal_vgs -y || info 'no metal volumes'
 
     # NUKE BLOCKs
     info wiping doomed raids and block-devices: "$doomed_disks"
