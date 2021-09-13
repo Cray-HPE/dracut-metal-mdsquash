@@ -303,7 +303,7 @@ pave() {
     else
         warn 'local storage device wipe [ safeguard DISABLED ]'
     fi
-    warn 'local storage device wipe commencing ...'
+    warn 'local storage device wipe commencing (USB devices are ignored)...'
 
     local doomed_disks
     local doomed_ceph_vgs='vg_name=~ceph*'
