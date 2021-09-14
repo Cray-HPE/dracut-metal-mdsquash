@@ -303,7 +303,7 @@ pave() {
     else
         warn 'local storage device wipe [ safeguard DISABLED ]'
     fi
-    warn 'local storage device wipe commencing ...'
+    warn 'local storage device wipe commencing (USB devices are ignored)...'
 
     local doomed_disks
     local doomed_ceph_vgs='vg_name=~ceph*'
@@ -328,7 +328,7 @@ pave() {
     done
 
     # NUKE BLOCKs
-    warn local storage devie wipe targeted devices: "$doomed_disks"
+    warn local storage device wipe targeted devices: "$doomed_disks"
     for doomed_disk in $doomed_disks; do
         wipefs --all --force "$doomed_disk" 2> /dev/null
     done
