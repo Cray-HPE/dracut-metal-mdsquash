@@ -1,4 +1,8 @@
-.github/            @Cray-HPE/metal
+# Global
+*               @Cray-HPE/metal
 
-90metalmdsquash/    doomslayer@hpe.com
+# Dracut Module Creator
+90metalmdsquash/   @rustydb
 
+# Publishing
+gh-pages        @jacobsalmela
