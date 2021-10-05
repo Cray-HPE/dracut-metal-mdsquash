@@ -65,7 +65,7 @@ In order to use this dracut module, you need:
 <a name="usage"></a>
 ## Usage
 
-Specify a local disk device for storing images, and the URL/endpoint to fetch images from.
+Specify a local disk device for storing images, and the URL/endpoint to fetch images from on the kernel commandline (e.g. via `grub.cfg`, or an iPXE script).
 
 ```
 metal.server=<URI> root=live:LABEL=SQFSRAID rd.live.squashimg=filesystem.squashfs
