@@ -4,6 +4,11 @@
 # MAINTAINER NOTE: these functions should not be complicated
 type die > /dev/null 2>&1 || . /lib/dracut-lib.sh
 
+# PIPE-DELIMITED-LIST of Transports to acknowledge from `lsblk` queries; these transports are 
+# exclusively cleaned and partitioned, all others on the node are left alone.
+# MAINTAINER NOTE: DO NOT ADD USB or ANY REMOVABLE MEDIA TRANSPORT in order to mitigate accidents.
+export metal_transports="sata|nvme|sas"
+
 # _trip_udev will call udevadm triggers to settle
 # this is useful for populating /dev/disk/by-label/ after FS changes.
 _trip_udev() {
