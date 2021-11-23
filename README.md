@@ -121,7 +121,7 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 ##### `metal.disks`
 > - `default: 2`
 > 
-> Specify the number of disks to use in the local mirror (RAID-1).
+> Specify the number of disks to use in the local RAID (see [`metal.md-level`](README.md#metalmd-level) for changing the RAID type).
 
 <a name="metalmd-level"></a>
 ##### `metal.md-level`
@@ -129,6 +129,8 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 > 
 > Change the level passed to mdadm for RAID creation, possible values are any value it takes. 
 > Milaege varies, buyer beware this could dig a hole deeper.
+
+> **`NOTE**: When `metal.disks=1` is set, only mirror and stripe will work.
 
 
 <a name="metalno-wipe"></a>

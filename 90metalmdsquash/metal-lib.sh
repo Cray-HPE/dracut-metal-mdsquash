@@ -24,3 +24,33 @@ metal_die() {
     sleep 30 # Leave time for console/log buffers to catch up.
     die
 }
+
+##############################################################################
+## Sorts a list of disks, returning the first disk that's larger than the 
+## given constraint.
+##
+## The output of this lsblk command is ideal for this function:
+##
+##   lsblk -b -l -o SIZE,NAME,TYPE,TRAN | grep -E '(sata|nvme|sas)' | sort -h | awk '{print $1 "," $2}' 
+##
+## usage:
+##
+##   metal_resolve_disk "size,name [size,name]" floor/minimum_size
+## 
+## example(s):
+##
+##   metal_resolve_disk "480103981056,sdc 1920383410176,sdb" 1048576000000
+metal_resolve_disk() {
+    local disks=$1
+    local minimum_size=$2
+    local found=0
+    for disk in $disks; do
+        name="$(echo $disk | sed 's/,/ /g' | awk '{print $2}')"
+        size="$(echo $disk | sed 's/,/ /g' | awk '{print $1}')"
+        if [ "${size}" -gt $minimum_size ]; then
+            found=1
+        fi 
+    done
+    printf $name
+    [ $found = 1 ] && return 0 || return 1
+}

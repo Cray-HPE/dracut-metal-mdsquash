@@ -23,6 +23,10 @@ auxillary_size_end=$(getargnum 150 0 200 metal.aux-md-size)
 metal_mdlevel=$(getarg metal.md-level=)
 [ -z "${metal_mdlevel}" ] && metal_mdlevel=mirror
 
+# Handle single-disk situations.
+mdadm_raid_devices="--raid-devices=$metal_disks"
+[ $metal_disks = 1 ] && mdadm_raid_devices="$mdadm_raid_devices --force"
+
 # directory to download new artifacts to, and look for old artifacts in.
 live_dir=$(getarg rd.live.dir -d live_dir)
 [ -z "${live_dir}" ] && live_dir="LiveOS"
@@ -153,8 +157,8 @@ make_raid_store() {
         sqfs_raid_parts="$(trim $sqfs_raid_parts) /dev/${disk}2"
     done
     # metadata=0.9 for boot files.
-    mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=0.9 --level="$metal_mdlevel" --raid-devices=$metal_disks ${boot_raid_parts} || metal_die "Failed to make filesystem on /dev/md/BOOT"
-    mdadm --create /dev/md/SQFS --run --verbose --assume-clean --metadata=1.2 --level="$metal_mdlevel" --raid-devices=$metal_disks ${sqfs_raid_parts} || metal_die "Failed to make filesystem on /dev/md/SQFS"
+    mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=0.9 --level="$metal_mdlevel" $mdadm_raid_devices ${boot_raid_parts} || metal_die "Failed to make filesystem on /dev/md/BOOT"
+    mdadm --create /dev/md/SQFS --run --verbose --assume-clean --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${sqfs_raid_parts} || metal_die "Failed to make filesystem on /dev/md/SQFS"
 
     _trip_udev
     mkfs.vfat -F32 -n "${boot_drive_authority}" /dev/md/BOOT || metal_die 'Failed to format bootraid.'
@@ -183,8 +187,8 @@ make_raid_overlay() {
         oval_raid_parts="$(trim $oval_raid_parts) /dev/${disk}3" # FIXME: Find partition number vs hard code.
         aux_raid_parts="$(trim $aux_raid_parts) /dev/${disk}4"
     done
-    mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" --raid-devices=$metal_disks ${oval_raid_parts} || metal_die "Failed to make filesystem on /dev/md/ROOT"
-    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" --raid-devices=$metal_disks ${aux_raid_parts} || metal_die "Failed to make filesystem on /dev/md/AUX"
+    mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${oval_raid_parts} || metal_die "Failed to make filesystem on /dev/md/ROOT"
+    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${aux_raid_parts} || metal_die "Failed to make filesystem on /dev/md/AUX"
 
     _trip_udev
     mkfs.xfs -f -L "${oval_drive_authority}" /dev/md/ROOT || metal_die 'Failed to format overlayFS storage.'
