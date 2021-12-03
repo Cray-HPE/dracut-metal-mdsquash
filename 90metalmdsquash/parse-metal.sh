@@ -11,11 +11,8 @@ metal_overlay=$(getarg rd.live.overlay)
 [ -z "${metal_overlay}" ] && metal_overlay=LABEL=ROOTRAID
 metal_server=$(getarg metal.server=)
 
-getargbool 0 metal.gcp-mode -d -y metal_gcp_mode && metal_gcp_mode=1
-
 export metal_debug
 export metal_disks
 export metal_nowipe
 export metal_overlay
 export metal_server
-export metal_gcp_mode
