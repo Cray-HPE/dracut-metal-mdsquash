@@ -188,7 +188,7 @@ make_raid_overlay() {
         aux_raid_parts="$(trim $aux_raid_parts) /dev/${disk}4"
     done
     mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${oval_raid_parts} || metal_die "Failed to make filesystem on /dev/md/ROOT"
-    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${aux_raid_parts} || metal_die "Failed to make filesystem on /dev/md/AUX"
+    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level='stripe' $mdadm_raid_devices ${aux_raid_parts} || metal_die "Failed to make filesystem on /dev/md/AUX"
 
     _trip_udev
     mkfs.xfs -f -L "${oval_drive_authority}" /dev/md/ROOT || metal_die 'Failed to format overlayFS storage.'
