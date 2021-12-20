@@ -217,6 +217,7 @@ add_overlayfs() {
     [ -f /tmp/metalovalimg.done ] && return
     [ -f /tmp/metalovaldisk.done ] || make_raid_overlay
     local mpoint=/metal/ovaldisk
+    local overlayfs="${mpoint}/${live_dir}/${squashfs_file}-overlayFS"
     mkdir -p ${mpoint}
     if ! mount -n -t xfs "/dev/disk/by-${oval_drive_scheme,,}/${oval_drive_authority}" "$mpoint"; then
 
@@ -224,11 +225,14 @@ add_overlayfs() {
         mount -n -t ext4 "/dev/disk/by-${oval_drive_scheme,,}/${oval_drive_authority}" "$mpoint" \
             || metal_die "Failed to mount ${oval_drive_authority} as xfs or ext4"
     fi
-
-    [ -z "${metal_overlayfs_id}" ] && metal_overlayfs_id="$(_overlayFS_path_spec)"
+    # Create the necessary directory structure for a true OverlayFS
+    # this is required by: https://github.com/dracutdevs/dracut/blob/813577e2ba034b448d2cf2d2857b2d20d56c0259/modules.d/90dmsquash-live/dmsquash-live-root.sh#L161-L169
     mkdir -m 0755 -p \
-        "${mpoint}/${live_dir}/${metal_overlayfs_id}" \
-        "${mpoint}/${live_dir}/${metal_overlayfs_id}/../ovlwork"
+        "${overlayfs}" \
+        "${overlayfs}/../ovlwork"
+    [ -z "${metal_overlayfs_id}" ] && metal_overlayfs_id="$(_overlayFS_path_spec)"
+    
+    ln -snf "${squashfs_file}-overlayFS" ${metal_overlayfs_id} && mv ${metal_overlayfs_id} ${mpoint}/${live_dir}/
     echo 1 > /tmp/metalovalimg.done && info 'OverlayFS is ready ...'
     umount ${mpoint}
 }
