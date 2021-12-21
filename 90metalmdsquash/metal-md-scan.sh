@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2021 Hewlett Packard Enterprise Development LP
 # metal-md-scan.sh for metalmdsquash
 type metal_die >/dev/null 2>&1 || . /lib/metal-lib.sh

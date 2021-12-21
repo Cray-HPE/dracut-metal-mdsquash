@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # metal-lib.sh for metalmdsquash and other metal dracut modules
 # this script provides the base library for metal, common functions
 # MAINTAINER NOTE: these functions should not be complicated

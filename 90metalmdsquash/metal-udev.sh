@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # metal-udev.sh ; copies all new udev rules into the overlayFS
 
 made=/etc/udev/rules.d/

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2021 Hewlett Packard Enterprise Development LP
 # parse-metal.sh for metalmdsquash
 
