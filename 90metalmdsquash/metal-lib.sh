@@ -15,9 +15,18 @@ _trip_udev() {
     udevadm settle >&2
 }
 
+# Return a dracut-dmsquash-live friendly name for an overlayFS to pair with a booting squashFS.
+# example:
+#
+#   overlay-SQFSRAID-cfc752e2-ebb3-4fa3-92e9-929e599d3ad2
+#
 _overlayFS_path_spec() {
-    [ -z $sqfs_drive_scheme ] || [ -z "$sqfs_drive_authority" ] && echo ''
-    echo "overlay-${sqfs_drive_authority}-$(blkid -s UUID -o value /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority})"
+    # if no label is given, grab the default array's UUID and use the default label
+    if [ -b /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority} ]; then
+        echo "overlay-${sqfs_drive_authority:-SQFSRAID}-$(blkid -s UUID -o value /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority})"
+    else
+        echo "overlay-${sqfs_drive_authority:-SQFSRAID}-$(blkid -s UUID -o value /dev/md/SQFS)"
+    fi
 }
 
 ##############################################################################
