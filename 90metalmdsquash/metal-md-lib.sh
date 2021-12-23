@@ -78,14 +78,14 @@ case "$root" in
     live:/dev/*)
         sqfs_drive_url=${root///dev\/disk\/by-}
         sqfs_drive_spec=${sqfs_drive_url#*:}
-        sqfs_drive_scheme=${sqfs_drive_spec%%/*}
-        sqfs_drive_authority=${sqfs_drive_spec#*/}
+        export sqfs_drive_scheme=${sqfs_drive_spec%%/*}
+        export sqfs_drive_authority=${sqfs_drive_spec#*/}
         ;;
     live:*)
         sqfs_drive_url=${root#live:}
         sqfs_drive_spec=${sqfs_drive_url#*:}
-        sqfs_drive_scheme=${sqfs_drive_spec%%=*}
-        sqfs_drive_authority=${sqfs_drive_spec#*=}
+        export sqfs_drive_scheme=${sqfs_drive_spec%%=*}
+        export sqfs_drive_authority=${sqfs_drive_spec#*=}
         ;;
     kdump)
         info "kdump detected. continuing..."
@@ -162,7 +162,10 @@ make_raid_store() {
 
     _trip_udev
     mkfs.vfat -F32 -n "${boot_drive_authority}" /dev/md/BOOT || metal_die 'Failed to format bootraid.'
-    mkfs.xfs -f -L "${sqfs_drive_authority}" /dev/md/SQFS || metal_die 'Failed to format squashFS storage.'
+
+    # NOTE: DO NOT LABEL THE SQFS ARRAY HERE, or dracut may try to open it before we've populated it with artifacts.
+    mkfs.xfs -f /dev/md/SQFS || metal_die 'Failed to format squashFS storage.'
+
     echo 1 > /tmp/metalsqfsdisk.done && info 'SquashFS storage is ready...'
 }
 
@@ -266,7 +269,7 @@ add_sqfs() {
         return 0
     fi
 
-    local sqfs_store=/squashfs_management
+    local sqfs_store=/tmp/squashfs
     if [ "${metal_uri_scheme}" != "file" ]; then
         tmp1="${metal_uri_authority#//}" # Chop the double slash prefix
         tmp2="${tmp1%%/*}"                # Chop the trailing path
@@ -279,14 +282,15 @@ add_sqfs() {
         fi
     fi
     mkdir -pv $sqfs_store
-    if mount -n -t xfs "/dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority}" $sqfs_store; then
+    if mount -n -t xfs /dev/md/SQFS $sqfs_store; then
         mkdir -pv "$sqfs_store/$live_dir"
-        fetch_sqfs "$sqfs_store/$live_dir" "$sqfs_store/$live_dir"
+        fetch_sqfs "$sqfs_store/$live_dir" || metal_die 'Failed to fetch squashFS into squashFS storage!'
         umount $sqfs_store
+        xfs_admin -L "${sqfs_drive_authority}" /dev/md/SQFS
     else
 
         # No RAID mount, issue warning, delete mount-point and return
-        metal_die "Failed to mount /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority} at $sqfs_store"
+        metal_die "Failed to mount /dev/md/SQFS at $sqfs_store"
     fi
 }
 
