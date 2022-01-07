@@ -31,6 +31,7 @@ storing persistent overlays.
       * [`metal.md-level`](README.md#metalmd-level)
       * [`metal.no-wipe`](README.md#metalno-wipe)
       * [`metal.gcp-mode`](README.md#metalgcp-mode)
+      * [`metal.ipv4`](README.md#metalipv4)
       * [`metal.sqfs-md-size`](README.md#metalsqfs-md-size)
       * [`metal.oval-md-size`](README.md#metaloval-md-size)
       * [`metal.aux-md-size`](README.md#metalaux-md-size)
@@ -146,6 +147,14 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 > - `default: 0`
 > 
 > If `metal.gcp-mode` is present on the cmdline (or set to 1), then dracut will assume any disk it finds is using GCP disks. This is important to set for GCP if using NVME disks. GCP only provides partitions from NVME, setting this will tell dracut-metal-mdsquash to use the partitions instead of the base NVME device.
+
+
+<a name="metalipv4"></a>
+##### `metal.ipv4`
+> - `default: 1`
+>
+> By default, metal-dracut will use IPv4 to resolve the deployment server for the initial call-to-home and when downloading artifacts regardless if IPv6 networking is present in the environment. To disable this constraint, simply set `metal.ipv4=0` in the cmdline. Setting this to `0` will enable all `ping` and `curl` calls for calling-home and downloading artifacts to use **either** IPv6 or IPv4 on their own accord (e.g. if IPv6 exists, then `ping` and `curl` will prefer to use it by default). Presumably if IPv6 is desired and exists, then IPv6 DHCP/DNS and general TCP/IP connectivity is working.
+> Lastly, if IPv6 does not exist then toggling this value to `0` has no effect.
 
 
 <a name="metalsqfs-md-size"></a>

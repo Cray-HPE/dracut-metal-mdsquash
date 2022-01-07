@@ -232,9 +232,9 @@ fetch_sqfs() {
         (
             set -e
             cd "$1"
-            curl -O "${metal_server}/${squashfs_file}" > /dev/null 2>&1 && echo >2 "${squashfs_file} downloaded  ... "
-            curl -O "${metal_server}/kernel" > /dev/null 2>&1 && echo >2 'grabbed the kernel it rode in on ... '
-            curl -O "${metal_server}/${initrd}" > /dev/null 2>&1 && echo >2 'and its initrd ... '
+            curl ${metal_ipv4:+-4} -O "${metal_server}/${squashfs_file}" > /dev/null 2>&1 && echo >2 "${squashfs_file} downloaded  ... "
+            curl ${metal_ipv4:+-4} -O "${metal_server}/kernel" > /dev/null 2>&1 && echo >2 'grabbed the kernel it rode in on ... '
+            curl ${metal_ipv4:+-4} -O "${metal_server}/${initrd}" > /dev/null 2>&1 && echo >2 'and its initrd ... '
         ) || warn 'Failed to download ; may retry'
     else
         # File support; copy the authority to tmp; tmp auto-clears on root-pivot.
@@ -274,7 +274,7 @@ add_sqfs() {
         tmp1="${metal_uri_authority#//}" # Chop the double slash prefix
         tmp2="${tmp1%%/*}"                # Chop the trailing path
         uri_host="${tmp2%%:*}"            # Chop any port number
-        if ping -c 5 "${uri_host}" > /dev/null 2>&1; then
+        if ping ${metal_ipv4:+-4} -c 5 "${uri_host}" > /dev/null 2>&1; then
             info "URI host ${uri_host} responds ..."
         else
             warn "Failed to ping URI host, ${uri_host:-UNDEFINED}, will retry later"
