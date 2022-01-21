@@ -232,9 +232,9 @@ fetch_sqfs() {
         (
             set -e
             cd "$1"
-            curl ${metal_ipv4:+-4} -O "${metal_server}/${squashfs_file}" > /dev/null 2>&1 && echo >2 "${squashfs_file} downloaded  ... "
-            curl ${metal_ipv4:+-4} -O "${metal_server}/kernel" > /dev/null 2>&1 && echo >2 'grabbed the kernel it rode in on ... '
-            curl ${metal_ipv4:+-4} -O "${metal_server}/${initrd}" > /dev/null 2>&1 && echo >2 'and its initrd ... '
+            curl ${metal_ipv4:+-4} -O "${metal_server}/${squashfs_file}" > /dev/null 2>&1 && echo "${squashfs_file} downloaded  ... " > debug_log
+            curl ${metal_ipv4:+-4} -O "${metal_server}/kernel" > /dev/null 2>&1 && echo 'grabbed the kernel it rode in on ... ' >> debug_log
+            curl ${metal_ipv4:+-4} -O "${metal_server}/${initrd}" > /dev/null 2>&1 && echo 'and its initrd ... ' >> debug_log
         ) || warn 'Failed to download ; may retry'
     else
         # File support; copy the authority to tmp; tmp auto-clears on root-pivot.
@@ -246,9 +246,9 @@ fetch_sqfs() {
         (
             set -e
             cd "$1"
-            cp -pv "/tmp/source/${metal_local_dir#//}/${squashfs_file}" . && echo >2 "copied ${squashfs_file} ... "
-            cp -pv "/tmp/source/${metal_local_dir#//}/kernel" . && echo >2 'grabbed the kernel we rode in on ... '
-            cp -pv "/tmp/source/${metal_local_dir#//}${initrd}" . && echo >2 'and its initrd ... '
+            cp -pv "/tmp/source/${metal_local_dir#//}/${squashfs_file}" . && echo "copied ${squashfs_file} ... " > debug_log
+            cp -pv "/tmp/source/${metal_local_dir#//}/kernel" . && echo 'grabbed the kernel we rode in on ... ' >> debug_log
+            cp -pv "/tmp/source/${metal_local_dir#//}${initrd}" . && echo 'and its initrd ... ' >> debug_log
         ) || warn 'Failed to copy ; may retry'
         umount /tmp/source
     fi
@@ -282,13 +282,17 @@ add_sqfs() {
         fi
     fi
     mkdir -pv $sqfs_store
-    if mount -n -t xfs /dev/md/SQFS $sqfs_store; then
+    # if metal-nowipe=1, this will already exist
+    if mount -n -t xfs -L "${sqfs_drive_authority}" $sqfs_store; then
+        # nothing to do
+        umount $sqfs_store
+        return
+    elif mount -n -t xfs /dev/md/SQFS $sqfs_store; then
         mkdir -pv "$sqfs_store/$live_dir"
         fetch_sqfs "$sqfs_store/$live_dir" || metal_die 'Failed to fetch squashFS into squashFS storage!'
         umount $sqfs_store
         xfs_admin -L "${sqfs_drive_authority}" /dev/md/SQFS
     else
-
         # No RAID mount, issue warning, delete mount-point and return
         metal_die "Failed to mount /dev/md/SQFS at $sqfs_store"
     fi
