@@ -24,7 +24,7 @@ fi
 # to an hour or indefinite.
 for md in $(find /dev/md** -type b); do
     handle=$(echo -n $md | cut -d '/' -f3)
-    if grep -B 2 $handle /proc/mdstat | grep -qi pending ; then
+    if grep -A 2 $handle /proc/mdstat | grep -qi pending ; then
         mdadm --readwrite $md
     fi
 done
