@@ -1,6 +1,6 @@
 @Library('csm-shared-library') _
 
-def isStable = env.TAG_NAME != null || env.BRANCH_NAME == 'main' ? true : false
+def isStable = env.TAG_NAME != null || env.BRANCH_NAME == 'main|release\\/.*' ? true : false
 pipeline {
   agent {
     label "metal-gcp-builder"
