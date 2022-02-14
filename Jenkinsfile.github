@@ -1,6 +1,8 @@
 @Library('csm-shared-library') _
 
-def isStable = env.TAG_NAME != null || env.BRANCH_NAME == 'main|release\\/.*' ? true : false
+def promotionToken = ~"(main|release\\/.*)"
+def isStable = env.TAG_NAME != null || env.BRANCH_NAME ==~ promotionToken ? true : false
+
 pipeline {
   agent {
     label "metal-gcp-builder"
