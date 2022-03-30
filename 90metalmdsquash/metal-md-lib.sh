@@ -148,7 +148,7 @@ make_raid_store() {
     # - SQFSRAID : For stowing squashFS images.
     local boot_raid_parts=''
     local sqfs_raid_parts=''
-    for disk in $md_disks; do
+    for disk in ${md_disks[@]}; do
         parted --wipesignatures -m --align=opt --ignore-busy -s "/dev/$disk" -- mklabel gpt \
             mkpart esp fat32 2048s 500MB set 1 esp on \
             mkpart primary xfs 500MB "${metal_sqfs_size_end}GB"
@@ -184,7 +184,7 @@ make_raid_overlay() {
     local aux_raid_parts=''
     local oval_end="$((overlay_size_end + metal_sqfs_size_end))"
     local aux_end="$((auxillary_size_end + oval_end))"
-    for disk in $md_disks; do
+    for disk in ${md_disks[@]}; do
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfs_size_end}GB" "${oval_end}GB"
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary "${oval_end}GB" "${aux_end}GB"
         oval_raid_parts="$(trim $oval_raid_parts) /dev/${disk}${metal_gcp_mode:+p}3" # FIXME: Find partition number vs hard code.
