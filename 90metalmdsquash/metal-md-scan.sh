@@ -53,7 +53,7 @@ fi
 # Also check for any RAIDs that may be in PENDING, sometimes the RAID arrays may stall the boot
 # if they did not fully sync before rebooting. The stall is usually only 1-5minutes, but it may vary
 # to an hour or indefinite.
-for md in $(find /dev/md** -type b); do
+for md in $(find /dev/md** -type b -exec echo {} \;); do
     handle=$(echo -n $md | cut -d '/' -f3)
     if grep -A 2 $handle /proc/mdstat | grep -qi pending ; then
         mdadm --readwrite $md

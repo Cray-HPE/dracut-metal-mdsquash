@@ -348,11 +348,11 @@ pave() {
     local doomed_metal_vgs='vg_name=~metal*'
 
     # Select the span of devices we care about; RAID, and all compatible transports.
-    doomed_disks="$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|'"$metal_transports"')' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ' | sed 's/ *$//')"
+    doomed_disks="$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|'"$METAL_TRANSPORTS"')' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ' | sed 's/ *$//')"
     [ -z "$doomed_disks" ] && echo 0 > /tmp/metalpave.done && return 0
 
-    warn nothing can be done to stop this except one one thing...
-    warn ...power this node off within the next 5 seconds to prevent any and all operations...
+    warn 'nothing can be done to stop this except one one thing ... '
+    warn '... power this node off within the next 5 seconds to prevent any and all operations ...'
     while [ "${time_to_live:-5}" -gt 0 ]; do
         [ "${time_to_live}" = 2 ] && unit='second' || unit='seconds'
         sleep 1 && local time_to_live=$((${time_to_live:-5} - 1)) && echo "${time_to_live:-5} $unit"
