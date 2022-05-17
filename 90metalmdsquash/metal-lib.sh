@@ -68,7 +68,7 @@ export metal_fsopts_xfs=noatime,largeio,inode64,swalloc,allocsize=13107
 #
 # Define the size that is considered to fit the "small" disk form factor. These
 # usually serve critical functions.
-export metal_disk_small=1048575999999
+export metal_disk_small=524288000000
 
 ##############################################################################
 # constant: metal_disk_large
