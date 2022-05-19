@@ -1,5 +1,6 @@
 @Library('csm-shared-library') _
 
+def sleVersion = '15.3'
 def isStable = env.TAG_NAME != null || env.BRANCH_NAME == 'main' ? true : false
 pipeline {
   agent {
@@ -18,13 +19,29 @@ pipeline {
   }
 
   stages {
-    stage('Prepare') {
+
+    stage("Prepare: RPM") {
+      agent {
+        docker {
+          image "artifactory.algol60.net/csm-docker/stable/csm-docker-sle:${sleVersion}"
+          reuseNode true
+        }
+      }
       steps {
-        sh "make prepare"
+        script {
+          runLibraryScript("addRpmMetaData.sh", "${env.GIT_REPO_NAME}.spec")
+          sh "make prepare"
+        }
       }
     }
 
     stage('Build: RPM') {
+      agent {
+        docker {
+          image "artifactory.algol60.net/csm-docker/stable/csm-docker-sle:${sleVersion}"
+          reuseNode true
+        }
+      }
       steps {
         sh "make rpm"
       }
