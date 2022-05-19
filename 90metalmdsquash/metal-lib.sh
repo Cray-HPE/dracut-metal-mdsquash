@@ -136,7 +136,7 @@ metal_die() {
 metal_scand() {
     local disk_offset=${1:-$metal_disks}
     local disks
-    disks="$(lsblk -b -l -o SIZE,NAME,TYPE,TRAN |\
+    disks="$(lsblk -b -l -d -o SIZE,NAME,TYPE,TRAN |\
         grep -E '('"$metal_transports"')' |\
         sort -h |\
         grep -vE 'p[0-9]+$' |\

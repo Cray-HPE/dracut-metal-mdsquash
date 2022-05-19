@@ -11,14 +11,9 @@ metal_overlay=$(getarg rd.live.overlay)
 [ -z "${metal_overlay}" ] && metal_overlay=LABEL=ROOTRAID
 metal_server=$(getarg metal.server=)
 
-# if any of these are not present on the cmdline they should remain as null (and not = 0).
-getargbool 0 metal.gcp-mode -d -y metal_gcp_mode && metal_gcp_mode=1
-getargbool 0 metal.ipv4 -d -y metal_gcp_mode && metal_ipv4=1
-
 export metal_debug
 export metal_disks
 export metal_nowipe
 export metal_overlay
 export metal_server
-export metal_gcp_mode
 export metal_ipv4
