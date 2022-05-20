@@ -28,7 +28,7 @@ if [ ! -f /tmp/metalsqfsdisk.done ]; then
         metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or smaller!"
         exit 1
     else
-        warn "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[@]}]"
+        echo >&2 "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[@]}]"
     fi
 fi
 
