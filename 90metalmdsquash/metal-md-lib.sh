@@ -153,8 +153,14 @@ make_raid_store() {
             mkpart esp fat32 2048s 500MB set 1 esp on \
             mkpart primary xfs 500MB "${metal_sqfs_size_end}GB"
         _trip_udev
-        boot_raid_parts="$(trim $boot_raid_parts) /dev/${disk}${metal_gcp_mode:+p}1"
-        sqfs_raid_parts="$(trim $sqfs_raid_parts) /dev/${disk}${metal_gcp_mode:+p}2"
+
+        # NVME partitions have a "p" to delimit the partition number.
+        if [[ "$disk" =~ "nvme" ]]; then
+            disk="${disk}p" 
+        fi
+
+        boot_raid_parts="$(trim $boot_raid_parts) /dev/${disk}1"
+        sqfs_raid_parts="$(trim $sqfs_raid_parts) /dev/${disk}2"
     done
     # metadata=0.9 for boot files.
     mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=0.9 --level="$metal_mdlevel" $mdadm_raid_devices ${boot_raid_parts} || metal_die "Failed to make filesystem on /dev/md/BOOT"
@@ -187,8 +193,14 @@ make_raid_overlay() {
     for disk in ${md_disks[@]}; do
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfs_size_end}GB" "${oval_end}GB"
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary "${oval_end}GB" "${aux_end}GB"
-        oval_raid_parts="$(trim $oval_raid_parts) /dev/${disk}${metal_gcp_mode:+p}3" # FIXME: Find partition number vs hard code.
-        aux_raid_parts="$(trim $aux_raid_parts) /dev/${disk}${metal_gcp_mode:+p}4"
+
+        # NVME partitions have a "p" to delimit the partition number.
+        if [[ "$disk" =~ "nvme" ]]; then
+            disk="${disk}p" 
+        fi
+
+        oval_raid_parts="$(trim $oval_raid_parts) /dev/${disk}3"
+        aux_raid_parts="$(trim $aux_raid_parts) /dev/${disk}4"
     done
     mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${oval_raid_parts} || metal_die "Failed to make filesystem on /dev/md/ROOT"
     mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level='stripe' $mdadm_raid_devices ${aux_raid_parts} || metal_die "Failed to make filesystem on /dev/md/AUX"

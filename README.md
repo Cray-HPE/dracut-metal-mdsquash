@@ -30,7 +30,6 @@ storing persistent overlays.
       * [`metal.disks`](README.md#metaldisks)
       * [`metal.md-level`](README.md#metalmd-level)
       * [`metal.no-wipe`](README.md#metalno-wipe)
-      * [`metal.gcp-mode`](README.md#metalgcp-mode)
       * [`metal.ipv4`](README.md#metalipv4)
       * [`metal.sqfs-md-size`](README.md#metalsqfs-md-size)
       * [`metal.oval-md-size`](README.md#metaloval-md-size)
@@ -140,13 +139,6 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 > - `default: 0`
 > 
 > If this is set to `metal.no-wipe=1`, then all destructive behavior is disabled. The metal modules will either use what they find or make 0 changes during boots. This is insurance, it should not be required. This is helpful for development, or for admins tracking old and new nodes.
-
-
-<a name="metalgcp-mode"></a>
-##### `metal.gcp-mode`
-> - `default: 0`
-> 
-> If `metal.gcp-mode` is present on the cmdline (or set to 1), then dracut will assume any disk it finds is using GCP disks. This is important to set for GCP if using NVME disks. GCP only provides partitions from NVME, setting this will tell dracut-metal-mdsquash to use the partitions instead of the base NVME device.
 
 
 <a name="metalipv4"></a>

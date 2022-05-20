@@ -18,17 +18,18 @@ type pave > /dev/null 2>&1 || . /lib/metal-md-lib.sh
 [ ! -f /tmp/metalpave.done ] && [ "${metal_nowipe:-0}" != 1 ] && pave
 
 # DISKS; disks were detected, find the amount we need or die. Also die if there are 0 disks.
-# MAINTAINER NOTE: Regardless of gcp mode, this will ignore any NVME partition incase they stick around after wiping.
-md_disks=()
-for disk in $(seq 1 $metal_disks); do
-    md_disk=$(metal_resolve_disk $(metal_scand $disk) $metal_disk_small)
-    md_disks+=( $md_disk )
-done
-if [ ${#md_disks[@]} = 0 ]; then
-    metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or smaller!"
-    exit 1
-else
-    warn "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[@]}]"
+if [ ! -f /tmp/metalsqfsdisk.done ]; then
+    md_disks=()
+    for disk in $(seq 1 $metal_disks); do
+        md_disk=$(metal_resolve_disk $(metal_scand $disk) $metal_disk_small)
+        md_disks+=( $md_disk )
+    done
+    if [ ${#md_disks[@]} = 0 ]; then
+        metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or smaller!"
+        exit 1
+    else
+        echo >&2 "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[@]}]"
+    fi
 fi
 
 # Verify structure ...
