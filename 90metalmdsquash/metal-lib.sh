@@ -1,6 +1,32 @@
 #!/bin/bash
-# metal-lib.sh for metalmdsquash and other metal dracut modules that
-# depend on functions in this library. Such as:
+#
+# MIT License
+#
+# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# metal-lib.sh
+#
+# NOTES:
+# This provides functions to:
+# - https://github.com/Cray-HPE/dracut-metal-mdsquash
 # - https://github.com/Cray-HPE/dracut-metal-dmk8s
 # - https://github.com/Cray-HPE/dracut-metal-luksetcd
 #
@@ -8,7 +34,7 @@
 # - constant       : A constant used throughout this module and dependent modules.
 # - core function  : A function that must not fail to execute when this library loads.
 # - function       : A function that can be used by any dracut module sourcing this library.
-
+[ "${metal_debug:-0}" = 0 ] || set -x
 
 ##############################################################################
 # core function: _load_dracut_dep
@@ -39,7 +65,7 @@ The metal-lib.sh library can not load in this state.
 EOF
     return 1
 fi
-    type die > /dev/null 2>&1 || . $lib
+    command -v die > /dev/null 2>&1 || . $lib
 }
 _load_dracut_dep
 
@@ -107,12 +133,37 @@ _overlayFS_path_spec() {
 # function: metal_die
 #
 # Wait for dracut to settle and die with an error message
+#
+# Optionally provide -b to reset the system.
 metal_die() {
+    local reset=0
+    local bootcurrent
+    if [ "$1" = "-b" ]; then
+        _reset=1
+        shift
+    fi
     type die
     echo >&2 "metal_die: $*"
     echo >&2 "GitHub/Docs: https://github.com/Cray-HPE/dracut-metal-mdsquash"
-    sleep 30 # Leave time for console/log buffers to catch up.
-    die
+    sleep 30 # Leaving time (30seconds) for console/log buffers to catch up.
+    if [ "$_reset" = 1 ]; then
+        
+        echo >&2 'A reset was requested ... '
+        
+        if command -v efibootmgr >/dev/null 2>&1; then
+            echo >&2 'Setting bootnext to bootcurrent ...'
+            bootcurrent="$(efibootmgr | grep -i bootcurrent | awk '{print $NF}')"
+            efibootmgr -n $bootcurrent >/dev/null
+        fi
+        
+        if [ "${metal_debug:-0}" = 0 ]; then
+            echo b >/proc/sysrq-trigger
+        else
+            echo >&2 'This server is running in debug mode, the reset was ignored.'
+        fi
+    else
+        die
+    fi
 }
 
 
@@ -165,7 +216,6 @@ metal_scand() {
 #
 #   metal_resolve_disk "480103981056,sdc 1920383410176,sdb" 1048576000000
 metal_resolve_disk() {
-    set -x
     local disks=$1
     local minimum_size=$(echo $2 | sed 's/,.*//')
     local found=0
@@ -178,4 +228,74 @@ metal_resolve_disk() {
     done
     printf $name
     [ $found = 1 ] && return 0 || return 1
+}
+
+##############################################################################
+# function: metal_paved
+#
+# Returns 0 if the pave has completed, 1 otherwise.
+#
+# usage:
+#
+#   To wait on the wipe in an initqueue script:
+#
+#      metal_paved || exit 1
+#
+metal_paved() {
+    local rc
+    if [ -f /tmp/metalpave.done ]; then
+        rc="$(cat /tmp/metalpave.done)"
+        case "$rc" in
+            1)
+                # 1 indicates the pave function ran and the disks were wiped.
+                echo >&2 'Disks have been wiped.'
+                return 0
+                ;;
+            0)
+                # 0 indicates the pave function was cleanly bypassed.
+                echo >&2 'Wipe was skipped.'
+                return 0
+                ;;
+            *)
+                echo >&2 "Wipe has emitted an unknown error code: $rc"
+                return 1
+                ;;
+        esac
+    else
+        # No file indicates the wipe function hasn't been called.
+        echo >&2 'Wipe pending or cancelled.'
+        return 1
+    fi
+}
+
+##############################################################################
+# function: disks_exist
+#
+# Returns 0 if disks exist, 1 otherwise.
+# Checks for:
+#
+#   - /dev/sd*
+#   - /dev/nvme*
+#
+# usage:
+#
+#   To wait on disks to exist:
+#
+#      disks_exist || exit 1
+#
+disks_exist() {
+    
+    # Wait for devices to exist
+    if ls /dev/sd* > /dev/null 2>&1; then
+    
+        # SD devices discovered.
+        return 0
+    elif ls /dev/nvme* > /dev/null 2>&1; then
+    
+        # NVME devices discovered.
+        return 0
+    fi
+    
+    # No block devices detected.
+    return 1
 }
