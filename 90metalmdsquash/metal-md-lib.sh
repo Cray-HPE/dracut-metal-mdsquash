@@ -1,11 +1,31 @@
 #!/bin/bash
+#
+# MIT License
+#
+# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+[ "${metal_debug:-0}" = 0 ] || set -x
 
-PATH=/usr/sbin:/usr/bin:/sbin:/bin
-
-[ "${metal_debug:-0}" = 1 ] && echo "$@" && set -x
-
-type getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
-type metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
+command -v getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
+command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 # Honor and obey dmsquash parameters, if a user sets a different rd.live.dir on the cmdline then it
 # should be reflected here as well.
@@ -148,7 +168,7 @@ make_raid_store() {
     # - SQFSRAID : For stowing squashFS images.
     local boot_raid_parts=''
     local sqfs_raid_parts=''
-    for disk in ${md_disks[@]}; do
+    for disk in "${md_disks[@]}"; do
         parted --wipesignatures -m --align=opt --ignore-busy -s "/dev/$disk" -- mklabel gpt \
             mkpart esp fat32 2048s 500MB set 1 esp on \
             mkpart primary xfs 500MB "${metal_sqfs_size_end}GB"
@@ -163,8 +183,8 @@ make_raid_store() {
         sqfs_raid_parts="$(trim $sqfs_raid_parts) /dev/${disk}2"
     done
     # metadata=0.9 for boot files.
-    mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=0.9 --level="$metal_mdlevel" $mdadm_raid_devices ${boot_raid_parts} || metal_die "Failed to make filesystem on /dev/md/BOOT"
-    mdadm --create /dev/md/SQFS --run --verbose --assume-clean --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${sqfs_raid_parts} || metal_die "Failed to make filesystem on /dev/md/SQFS"
+    mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=0.9 --level="$metal_mdlevel" $mdadm_raid_devices ${boot_raid_parts} || metal_die -b "Failed to make filesystem on /dev/md/BOOT"
+    mdadm --create /dev/md/SQFS --run --verbose --assume-clean --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${sqfs_raid_parts} || metal_die -b "Failed to make filesystem on /dev/md/SQFS"
 
     _trip_udev
     mkfs.vfat -F32 -n "${boot_drive_authority}" /dev/md/BOOT || metal_die 'Failed to format bootraid.'
@@ -190,7 +210,7 @@ make_raid_overlay() {
     local aux_raid_parts=''
     local oval_end="$((overlay_size_end + metal_sqfs_size_end))"
     local aux_end="$((auxillary_size_end + oval_end))"
-    for disk in ${md_disks[@]}; do
+    for disk in "${md_disks[@]}"; do
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfs_size_end}GB" "${oval_end}GB"
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary "${oval_end}GB" "${aux_end}GB"
 
@@ -202,8 +222,8 @@ make_raid_overlay() {
         oval_raid_parts="$(trim $oval_raid_parts) /dev/${disk}3"
         aux_raid_parts="$(trim $aux_raid_parts) /dev/${disk}4"
     done
-    mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${oval_raid_parts} || metal_die "Failed to make filesystem on /dev/md/ROOT"
-    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level='stripe' $mdadm_raid_devices ${aux_raid_parts} || metal_die "Failed to make filesystem on /dev/md/AUX"
+    mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${oval_raid_parts} || metal_die -b "Failed to make filesystem on /dev/md/ROOT"
+    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level='stripe' $mdadm_raid_devices ${aux_raid_parts} || metal_die -b "Failed to make filesystem on /dev/md/AUX"
 
     _trip_udev
     mkfs.xfs -f -L "${oval_drive_authority}" /dev/md/ROOT || metal_die 'Failed to format overlayFS storage.'
@@ -283,7 +303,7 @@ add_sqfs() {
 
     local sqfs_store=/tmp/squashfs
     if [ "${metal_uri_scheme}" != "file" ]; then
-        tmp1="${metal_uri_authority#//}" # Chop the double slash prefix
+        tmp1="${metal_uri_authority#//}"  # Chop the double slash prefix
         tmp2="${tmp1%%/*}"                # Chop the trailing path
         uri_host="${tmp2%%:*}"            # Chop any port number
         if ping ${metal_ipv4:+-4} -c 5 "${uri_host}" > /dev/null 2>&1; then
@@ -294,16 +314,10 @@ add_sqfs() {
         fi
     fi
     mkdir -pv $sqfs_store
-    # if metal-nowipe=1, this will already exist
-    if mount -n -t xfs -L "${sqfs_drive_authority}" $sqfs_store; then
-        # nothing to do
-        umount $sqfs_store
-        return
-    elif mount -n -t xfs /dev/md/SQFS $sqfs_store; then
+    if mount -n -t xfs /dev/md/SQFS $sqfs_store; then
         mkdir -pv "$sqfs_store/$live_dir"
         fetch_sqfs "$sqfs_store/$live_dir" || metal_die 'Failed to fetch squashFS into squashFS storage!'
         umount $sqfs_store
-        xfs_admin -L "${sqfs_drive_authority}" /dev/md/SQFS
     else
         # No RAID mount, issue warning, delete mount-point and return
         metal_die "Failed to mount /dev/md/SQFS at $sqfs_store"
@@ -347,6 +361,7 @@ pave() {
     # NUKES: these go in order from logical (e.g. LVM) -> block (e.g. block devices from lsblk) -> physical (e.g. RAID and other controller tertiary to their members).
 
     # NUKE LVMs
+    vgscan
     for volume_group in $doomed_ceph_vgs $doomed_metal_vgs; do
         warn removing all volume groups of name \'$volume_group\' && vgremove -f --select $volume_group -y >/dev/null 2>&1 || warn no $volume_group volumes found
     done
@@ -363,4 +378,14 @@ pave() {
     _trip_udev
 
     warn local storage disk wipe complete && echo 1 > /tmp/metalpave.done
+}
+
+##############################################################################
+## Pave
+# Conclude and exit the dracut init loop.
+# Provide the expected devices to dmsquash-live
+metal_md_exit() {
+    [ ! -b /dev/md/SQFS ] && return 1
+    xfs_admin -L "${sqfs_drive_authority}" /dev/md/SQFS
+    ln -s null /dev/metal
 }

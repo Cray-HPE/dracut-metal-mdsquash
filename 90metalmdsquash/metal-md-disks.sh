@@ -1,23 +1,48 @@
 #!/bin/bash
-# Copyright 2021 Hewlett Packard Enterprise Development LP
-# metal-md-disks.sh for metalmdsquash
+#
+# MIT License
+#
+# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+# metal-md-disks.sh
+[ "${metal_debug:-0}" = 0 ] || set -x
 
-# DEVICES EXIST or DIE
-ls /dev/sd* > /dev/null 2>&1 || exit 1
+# This module already ran if /dev/metal exists..
+[ -L /dev/metal ] && exit 0
 
-# If disks exist then it's worthwhile to load libraries.
-type metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
-type pave > /dev/null 2>&1 || . /lib/metal-md-lib.sh
+# Wait for disks to exist.
+command -v disks_exist > /dev/null 2>&1 || . /lib/metal-lib.sh
+disks_exist || exit 1
 
-# PRELIMINARY SCAN; this jumpstarts any existing RAIDs on regular "non-deployment boots." 
-# EXIT 0 if no metal-server is set; exit nicely after the preliminary RAID scan, this is a "non-deployment boot"
-/sbin/metal-md-scan
-[ -z "${metal_server:-}" ] && exit 0
+# Remove the label associated with the SQFS RAID if it exists to ensure dmsquash-live waits.
+# This would only exist on a reboot.
+[ -b /dev/md/SQFS ] && xfs_admin -L -- /dev/md/SQFS
+
+# Now that disks exist it's worthwhile to load the libraries.
+command -v pave > /dev/null 2>&1 || . /lib/metal-md-lib.sh
 
 # PAVE & GO-AROUND/RETRY
 [ ! -f /tmp/metalpave.done ] && [ "${metal_nowipe:-0}" != 1 ] && pave
 
-# DISKS; disks were detected, find the amount we need or die. Also die if there are 0 disks.
+# At this point this module is required; a disk must be created or the system has nothing to boot.
+# Die if no viable disks are found; otherwise continue to disk creation functions.
 if [ ! -f /tmp/metalsqfsdisk.done ]; then
     md_disks=()
     for disk in $(seq 1 $metal_disks); do
@@ -28,18 +53,26 @@ if [ ! -f /tmp/metalsqfsdisk.done ]; then
         metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or smaller!"
         exit 1
     else
-        echo >&2 "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[@]}]"
+        echo >&2 "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
     fi
 fi
 
-# Verify structure ...
+# Create disks.
 [ ! -f /tmp/metalsqfsdisk.done ] && make_raid_store
 [ ! -f /tmp/metalovalimg.done ] && add_overlayfs
 [ ! -f /tmp/metalsqfsimg.done ] && add_sqfs
 
-# EXIT or RETRY
-if [ -n "${metal_overlay:-}" ]; then
-    [ -f /tmp/metalsqfsdisk.done ] && [ -f /tmp/metalsqfsimg.done ] && [ -f /tmp/metalovalimg.done ] && exit 0
-else
-    [ -f /tmp/metalsqfsdisk.done ] && [ -f /tmp/metalsqfsimg.done ] && exit 0
+# Verify our disks were created; satisfy the wait_for_dev hook if they were, otherwise keep waiting.
+if [ -f /tmp/metalsqfsdisk.done ] && [ -f /tmp/metalsqfsimg.done ]; then
+    if [ -n "${metal_overlay:-}" ] && [ ! -f /tmp/metalovalimg.done ]; then
+        # Waiting on overlay creation.
+        exit 1
+    fi    
+    if metal_md_exit; then
+        # This module has finished; this initqueue script needs to exit cleanly.
+        exit 0
+    else
+        # This module had issues trying to exit.
+        metal_die "Failed to setup root dependencies."
+    fi
 fi
