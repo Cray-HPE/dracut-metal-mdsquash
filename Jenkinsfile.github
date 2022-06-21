@@ -15,8 +15,6 @@ pipeline {
   }
 
   environment {
-    IS_STABLE = getBuildIsStable()
-    BUILD_METADATA = getRpmRevision(isStable: isStable)
     GIT_REPO_NAME = getRepoName()
     VERSION = sh(returnStdout: true, script: "git describe --tags | tr -s '-' '~' | tr -d '^v'").trim()
   }
