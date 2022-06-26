@@ -39,6 +39,9 @@ metal_sqfs_size_end=$(getargnum 25 25 100 metal.sqfs-md-size)
 overlay_size_end=$(getargnum 150 25 200 metal.oval-md-size)
 auxillary_size_end=$(getargnum 150 0 200 metal.aux-md-size)
 
+# The time (in seconds) for delaying the wipe once the wipe has been invoked.
+metal_wipe_delay=$(getargnum 5 2 60 metal.wipe-delay)
+
 # this is passed to mdadm during creation; default is redundant mirrors
 metal_mdlevel=$(getarg metal.md-level=)
 [ -z "${metal_mdlevel}" ] && metal_mdlevel=mirror
@@ -364,8 +367,17 @@ add_sqfs() {
 # MAINTAINER NOTE DO NOT VOID THE AFOREMENTIONED STATEMENT!
 # (these are the busses this scans for from `lsblk`).
 pave() {
-    local log=/tmp/metalpave.done.log
-    echo 'pave called' >$log
+    local log="$METAL_DONE_FILE_PAVED.log"
+    echo '${FUNCNAME[0]} called' >$log
+    
+    # If the done file already exists, do not modify it and do not touch anything.
+    # Return 0 because the work was already done and we don't want to layer more runs of this atop
+    # the original run.
+    if [ -f "$METAL_DONE_FILE_PAVED" ]; then
+        echo "${FUNCNAME[0]} already done" >>$log
+        echo "wipe done file already exists ("$METAL_DONE_FILE_PAVED"); not wiping disks"
+        return 0
+    fi
     mount -v >>$log 2>&1
     lsblk >>$log 2>&1
     ls -l /dev/md* >>$log 2>&1
@@ -373,9 +385,10 @@ pave() {
     ls -l /dev/nvme* >>$log 2>&1
     cat /proc/mdstat >>$log 2>&1
     if [ "$metal_nowipe" != 0 ]; then
+        echo "${FUNCNAME[0]} skipped: metal.no-wipe=${metal_nowipe}" >>$log
         warn 'local storage device wipe [ safeguard ENABLED  ]'
         warn 'local storage devices will not be wiped.'
-        echo 0 > /tmp/metalpave.done && return 0
+        echo 0 > "$METAL_DONE_FILE_PAVED" && return 0
     else
         warn 'local storage device wipe [ safeguard DISABLED ]'
     fi
@@ -387,13 +400,12 @@ pave() {
 
     # Select the span of devices we care about; RAID, and all compatible transports.
     doomed_disks="$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|'"$metal_transports"')' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ' | sed 's/ *$//')"
-    [ -z "$doomed_disks" ] && echo 0 > /tmp/metalpave.done && return 0
 
-    warn nothing can be done to stop this except one one thing...
-    warn ...power this node off within the next 5 seconds to prevent any and all operations...
-    while [ "${time_to_live:-5}" -gt 0 ]; do
-        [ "${time_to_live}" = 2 ] && unit='second' || unit='seconds'
-        sleep 1 && local time_to_live=$((${time_to_live:-5} - 1)) && echo "${time_to_live:-5} $unit"
+    warn 'nothing can be done to stop this except one one thing ...'
+    warn "... power this node off within the next [$metal_wipe_delay] seconds to prevent any and all operations ..."
+    while [ "${metal_wipe_delay}" -ge 0 ]; do
+        [ "${metal_wipe_delay}" = 2 ] && unit='second' || unit='seconds'
+        sleep 1 && local metal_wipe_delay=$((${metal_wipe_delay} - 1)) && echo "${metal_wipe_delay} $unit"
     done
 
     #
@@ -403,11 +415,11 @@ pave() {
     # NUKE LVMs
     vgscan
     for volume_group in $doomed_ceph_vgs $doomed_metal_vgs; do
-        warn removing all volume groups of name \'$volume_group\' && vgremove -f --select $volume_group -y >/dev/null 2>&1 || warn "no $volume_group volumes found"
+        warn "removing all volume groups of name [$volume_group]" && vgremove -f --select $volume_group -y >/dev/null 2>&1 || warn "no $volume_group volumes found"
     done
 
     # NUKE BLOCKs
-    warn local storage device wipe targeted devices: "$doomed_disks"
+    warn "local storage device wipe targeted devices: [$doomed_disks]"
     for doomed_disk in $doomed_disks; do
         wipefs --all --force $doomed_disk* 2> /dev/null
     done
@@ -417,8 +429,8 @@ pave() {
 
     _trip_udev
 
-    warn local storage disk wipe complete && echo 1 > /tmp/metalpave.done
-    echo 'pave done' >$log
+    warn 'local storage disk wipe complete' && echo 1 > "$METAL_DONE_FILE_PAVED"
+    echo "${FUNCNAME[0]} done" >>$log
     mount -v >>$log 2>&1
     lsblk >>$log 2>&1
     ls -l /dev/md* >>$log 2>&1

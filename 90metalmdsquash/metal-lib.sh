@@ -70,6 +70,15 @@ fi
 _load_dracut_dep
 
 ##############################################################################
+# constant: METAL_DONE_FILE_PAVED
+#
+# This file path present a file that the wipe function creates when it is 
+# invoked. The existence of the file implies the wipe code as been invoked,
+# the contents of the file can be interpretted to determine what the wipe
+# function actually did (see func metal_paved).
+export METAL_DONE_FILE_PAVED='/tmp/metalpave.done'
+
+##############################################################################
 # constant: metal_transports
 #
 # PIPE-DELIMITED-LIST of Transports to acknowledge from `lsblk` queries; these transports are 
@@ -243,8 +252,8 @@ metal_resolve_disk() {
 #
 metal_paved() {
     local rc
-    if [ -f /tmp/metalpave.done ]; then
-        rc="$(cat /tmp/metalpave.done)"
+    if [ -f "$METAL_DONE_FILE_PAVED" ]; then
+        rc="$(cat "$METAL_DONE_FILE_PAVED")"
         case "$rc" in
             1)
                 # 1 indicates the pave function ran and the disks were wiped.
@@ -258,12 +267,12 @@ metal_paved() {
                 ;;
             *)
                 echo >&2 "Wipe has emitted an unknown error code: $rc"
-                return 1
+                return 2
                 ;;
         esac
     else
-        # No file indicates the wipe function hasn't been called.
-        echo >&2 'Wipe pending or cancelled.'
+        # No file indicates the wipe function hasn't been called yet.
+        echo >&2 "No sign of wipe function being called (yet). $METAL_DONE_FILE_PAVED was not found"
         return 1
     fi
 }

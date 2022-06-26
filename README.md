@@ -30,6 +30,7 @@ storing persistent overlays.
       * [`metal.disks`](README.md#metaldisks)
       * [`metal.md-level`](README.md#metalmd-level)
       * [`metal.no-wipe`](README.md#metalno-wipe)
+      * [`metal.wipe-delay`](README.md#metalwipe-delay)
       * [`metal.ipv4`](README.md#metalipv4)
       * [`metal.sqfs-md-size`](README.md#metalsqfs-md-size)
       * [`metal.oval-md-size`](README.md#metaloval-md-size)
@@ -114,19 +115,19 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 <a name="metaldebug"></a>
 ##### `metal.debug`
-> - `default: 0`
+> - `Default: 0`
 > 
 > Set `metal.debug=1` to enable debug output from only metal modules. This will verbosely print the creation of the RAIDs and fetching of the squashFS image. **This effectively runs all dracut-metal code with `set -x`**, while leaving the rest of dracut to its own debug level.
 
 <a name="metaldisks"></a>
 ##### `metal.disks`
-> - `default: 2`
+> - `Default: 2`
 > 
 > Specify the number of disks to use in the local RAID (see [`metal.md-level`](README.md#metalmd-level) for changing the RAID type).
 
 <a name="metalmd-level"></a>
 ##### `metal.md-level`
-> - `default: mirror`
+> - `Default: mirror`
 > 
 > Change the level passed to mdadm for RAID creation, possible values are any value it takes. 
 > Milaege varies, buyer beware this could dig a hole deeper.
@@ -136,14 +137,22 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 <a name="metalno-wipe"></a>
 ##### `metal.no-wipe`
-> - `default: 0`
+> - `Default: 0`
 > 
 > If this is set to `metal.no-wipe=1`, then all destructive behavior is disabled. The metal modules will either use what they find or make 0 changes during boots. This is insurance, it should not be required. This is helpful for development, or for admins tracking old and new nodes.
 
 
+<a name="metalwipe-delay"></a>
+##### `metal.wipe-delay`
+> - `Default: 5`
+> - `Unit: Seconds`
+>
+> The number of seconds that the wipe function will wait to allow an administrator to cancel it (by powering the node off). See the source code in [`metal-md-lib.sh`](./90metalmdsquash/metal-md-lib.sh) for minimum and maximum values.
+
+
 <a name="metalipv4"></a>
 ##### `metal.ipv4`
-> - `default: 1`
+> - `Default: 1`
 >
 > By default, metal-dracut will use IPv4 to resolve the deployment server for the initial call-to-home and when downloading artifacts regardless if IPv6 networking is present in the environment. To disable this constraint, simply set `metal.ipv4=0` in the cmdline. Setting this to `0` will enable all `ping` and `curl` calls for calling-home and downloading artifacts to use **either** IPv6 or IPv4 on their own accord (e.g. if IPv6 exists, then `ping` and `curl` will prefer to use it by default). Presumably if IPv6 is desired and exists, then IPv6 DHCP/DNS and general TCP/IP connectivity is working.
 > Lastly, if IPv6 does not exist then toggling this value to `0` has no effect.
@@ -151,8 +160,8 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 <a name="metalsqfs-md-size"></a>
 ##### `metal.sqfs-md-size`
-> - default: `25`
-> - Unit: Gigabytes
+> - `Default: 25`
+> - `Unit: Gigabytes`
 > 
 > Set the size for the new SQFS partition.
 > Buyer beware this does not resize, this applies for new partitions.
@@ -160,8 +169,8 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 <a name="metaloval-md-size"></a>
 ##### `metal.oval-md-size`
-> - default: `150`
-> - Unit: Gigabytes
+> - `Default: 150`
+> - `Unit: Gigabytes`
 > 
 > Set the size for the new SQFS partition.
 > Buyer beware this does not resize, this applies for new partitions.
@@ -169,8 +178,8 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 <a name="metalaux-md-size"></a>
 ##### `metal.aux-md-size`
-> - default: `150`
-> - Unit: Gigabytes
+> - `Default: 150`
+> - `Unit: Gigabytes`
 >
 > Set the size for the new SQFS partition.
 > Buyer beware this does not resize, this applies for new partitions.
@@ -184,13 +193,13 @@ reference: [dracut dmsquashlive cmdline](1)
 
 <a name="rdlivedir"></a>
 ##### `rd.live.dir`
-> - `default: LiveOS`
+> - `Default: LiveOS`
 > 
 > Name of the directory store and load the artifacts from. Changing this value will affect metal and native-dracut.
 
 <a name="root"></a>
 ##### `root`
-> - `default: live:LABEL=SQFSRAID`
+> - `Default: live:LABEL=SQFSRAID`
 > 
 > Specify the FSlabel of the block device to use for the SQFS storage. This could be an existing RAID or non-RAIDed device.
 > If a label is not found in `/dev/disk/by-label/*`, then the os-disks are paved with a new mirror array.
@@ -198,7 +207,7 @@ reference: [dracut dmsquashlive cmdline](1)
 
 <a name="rdliveoverlay"></a>
 ##### `rd.live.overlay`
-> - `default: LABEL=ROOTRAID`
+> - `Default: LABEL=ROOTRAID`
 > 
 > Specify the FSlabel of the block device to use for persistent storage.
 > If a label is not found in `/dev/disk/by-label/*`, then the os-disks are paved.
@@ -206,13 +215,13 @@ reference: [dracut dmsquashlive cmdline](1)
 
 <a name="rdliveoverlay.readonly"></a>
 ##### `rd.live.overlay.readonly`
-> - `default: 0`
+> - `Default: 0`
 > 
 > Make the persistent overlayFS read-only.
 
 <a name="rdliveoverlayreset"></a>
 ##### `rd.live.overlay.reset`
-> - `default: 0`
+> - `Default: 0`
 > 
 > Reset the persistent overlayFS, regardless if it is read-only.
 > On the **next** boot the overlayFS will clear itself, it will continue to clear itself every
@@ -221,13 +230,13 @@ reference: [dracut dmsquashlive cmdline](1)
 
 <a name="rdliveoverlaysize"></a>
 ##### `rd.live.overlay.size`
-> - `default: 204800`
+> - `Default: 204800`
 > 
 > Specify the size of the overlay in MB.
 
 <a name="rdlivesquashimg"></a>
 ##### `rd.live.squashimg`
-> - `default: filesystem.squashfs`
+> - `Default: filesystem.squashfs`
 > 
 > Specify the filename to refer to download.
 
@@ -238,7 +247,7 @@ notereference: [dracut standard cmdline](2)
 
 <a name="rootfallback"></a>
 ##### `rootfallback`
-> - `default: LABEL=BOOTRAID`
+> - `Default: LABEL=BOOTRAID`
 > 
 > This the label for the partition to be used for a fallback bootloader.
 
