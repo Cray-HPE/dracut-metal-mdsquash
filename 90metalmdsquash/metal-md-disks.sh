@@ -39,8 +39,8 @@ disks_exist || exit 1
 # Now that disks exist it's worthwhile to load the libraries.
 command -v pave > /dev/null 2>&1 || . /lib/metal-md-lib.sh
 
-# PAVE & GO-AROUND/RETRY
-[ ! -f /tmp/metalpave.done ] && [ "${metal_nowipe:-0}" != 1 ] && pave
+# Wipe; this returns early if a wipe was already done.
+pave
 
 # Check for existing RAIDs
 /sbin/metal-md-scan
