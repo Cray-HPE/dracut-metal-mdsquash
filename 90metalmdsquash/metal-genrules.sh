@@ -25,8 +25,17 @@
 # metal-genrules.sh
 [ "${metal_debug:-0}" = 0 ] || set -x
 
-command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 command -v wait_for_dev > /dev/null 2>&1 || . /lib/dracut-lib.sh
+
+root=$(getarg root)
+case $root in 
+    kdump)
+        echo 'Not doing anything for kdump'
+        exit 0
+        ;;
+esac
+
+command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 # Load and execute with desired URL driver.
 case "${metal_server:-}" in
