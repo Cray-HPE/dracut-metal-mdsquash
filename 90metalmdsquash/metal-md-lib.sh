@@ -110,10 +110,6 @@ case "$root" in
         export sqfs_drive_scheme=${sqfs_drive_spec%%=*}
         export sqfs_drive_authority=${sqfs_drive_spec#*=}
         ;;
-    kdump)
-        # TODO: Remove this case; kdump's initrd should not have metal.server set or it should remove this module.
-        info "kdump detected. continuing..."
-        ;;
     '')
         warn "No root; root needed - the system will likely fail to boot."
         # do not fail, allow dracut to handle everything in case an operator/admin is doing something.
@@ -306,11 +302,6 @@ fetch_sqfs() {
 ## SquashFS
 # Add a local file to squashFS storage.
 add_sqfs() {
-    # TODO: this could maybe move into metal-genrules.sh, preventing any call under kdump.
-    if [ $root = "kdump" ]; then
-        echo "skipping metal-phone-home for kdump..."
-        return 0
-    fi
 
     local sqfs_store=/metal/squashfs
     local dhcp_retry=$(getargnum 1 1 1000000000 rd.net.dhcp.retry=)
