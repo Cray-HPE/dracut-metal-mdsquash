@@ -25,8 +25,19 @@
 # metal-genrules.sh
 [ "${metal_debug:-0}" = 0 ] || set -x
 
-command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
+command -v getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
+
+case "$(getarg root)" in 
+    kdump)
+        /sbin/initqueue --settled /sbin/metal-md-scan
+        
+        # Ensure nothing else in this script is invoked in this case.
+        exit 0
+        ;;
+esac
+
 command -v wait_for_dev > /dev/null 2>&1 || . /lib/dracut-lib.sh
+command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 # Load and execute with desired URL driver.
 case "${metal_server:-}" in
