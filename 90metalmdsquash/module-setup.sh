@@ -44,7 +44,7 @@ installkernel() {
 
 # called by dracut
 install() {
-    inst_multiple cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs parted seq sort tail wc vgscan xfs_admin
+    inst_multiple cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs parted partprobe seq sort tail wc vgscan xfs_admin
     # install our callables
     inst_simple "$moddir/mdadm.conf" "/etc/mdadm.conf"
     inst_simple "$moddir/metal-md-lib.sh" "/lib/metal-md-lib.sh"
