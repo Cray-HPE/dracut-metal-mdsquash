@@ -404,9 +404,9 @@ pave() {
     #
 
     # NUKE LVMs
-    vgscan
+    vgscan >&2 && vgs >&2
     for volume_group in $doomed_ceph_vgs $doomed_metal_vgs; do
-        warn "removing all volume groups of name [$volume_group]" && vgremove -f --select $volume_group -y >/dev/null 2>&1 || warn "no $volume_group volumes found"
+        warn "removing all volume groups of name [$volume_group]" && vgremove -f --select $volume_group -y >&2 || warn "no $volume_group volumes found"
     done
 
     # NUKE BLOCKs
