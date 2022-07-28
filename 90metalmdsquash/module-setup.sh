@@ -57,6 +57,7 @@ install() {
 
     # before loading the copy any new fstab.metal into place
     # copy udev rules into the sysroot available during pre-pivot
+    inst_hook pre-mount 10 "$moddir/metal-kdump.sh"
     inst_hook pre-pivot 10 "$moddir/metal-update-fstab.sh"
     inst_hook pre-pivot 11 "$moddir/metal-udev.sh"
 
