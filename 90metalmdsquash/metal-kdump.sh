@@ -60,9 +60,9 @@ function prepare {
     kernel_savedir="$(grep -oP 'KDUMP_SAVEDIR="file:///\K\S+[^"]' /run/rootfsbase/etc/sysconfig/kdump)"
 
     if [ ! -d "/run/initramfs/overlayfs/${kernel_savedir}" ]; then
-        mkdir -pv "/run/initramfs/overlayfs/${kernel_savedir}"
-        printf '% -18s\t% -18s\t%s\t%s 0 0\n' "/run/initramfs/overlayfs/${kernel_savedir}" /var/crash none defaults,bind >> $metal_fstab
+        mkdir -pv "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/var/crash"
     fi
+    ln -snf "./${LIVE_DIR}/${OVERLAYFS_PATH}/var/crash" "/run/initramfs/overlayfs/${kernel_savedir}"
 
     if [ ! -d "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot" ]; then
         mkdir -pv "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot"
