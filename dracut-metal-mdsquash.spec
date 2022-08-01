@@ -91,4 +91,11 @@ cp -pvrR ./%{module_name}/* %{buildroot}%{dracut_modules}/%{module_name} | awk '
 
 %preun
 
+%posttrans
+mkinitrd -B
+
+if rpm -q kdump 2>&1 >/dev/null ; then
+    mkdumprd -f
+fi
+
 %changelog
