@@ -40,18 +40,21 @@ command -v wait_for_dev > /dev/null 2>&1 || . /lib/dracut-lib.sh
 command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 # Load and execute with desired URL driver.
-case "${metal_server:-}" in
-    file:*|http:*|https:*)
+export metal_uri_scheme=${metal_server%%:*}
+export metal_uri_authority=${metal_server#*:}
+
+case "${metal_uri_scheme:-}" in
+    file|http|https)
         wait_for_dev -n /dev/metal
         /sbin/initqueue --settled /sbin/metal-md-disks
         ;;
-    s3:*)
+    s3)
         metal_die "s3-direct is not implemented, try http/https instead"
         ;;
-    ftp:*)
+    ftp)
         metal_die "insecure ftp is not implemented"
         ;;
-    scp:*|sftp:*)
+    scp|sftp)
         metal_die "credential based transfer (scp and sftp) is not implemented, try http/https instead"
         ;;
     '')
@@ -59,6 +62,6 @@ case "${metal_server:-}" in
         /sbin/initqueue --settled /sbin/metal-md-scan
         ;;
     *)
-        warn "Unknown driver "$metal_server"; metal.server ignored/discarded"
+        warn "Unknown driver $metal_server; metal.server ignored/discarded"
         ;;
 esac
