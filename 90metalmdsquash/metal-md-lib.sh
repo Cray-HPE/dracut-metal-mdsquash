@@ -377,17 +377,18 @@ pave() {
     cat /proc/mdstat >>$log 2>&1
     if [ "$metal_nowipe" != 0 ]; then
         echo "${FUNCNAME[0]} skipped: metal.no-wipe=${metal_nowipe}" >>$log
-        warn 'local storage device wipe [ safeguard ENABLED  ]'
+        warn 'local storage device wipe [ safeguard: ENABLED  ]'
         warn 'local storage devices will not be wiped.'
         echo 0 > "$METAL_DONE_FILE_PAVED" && return 0
     else
-        warn 'local storage device wipe [ safeguard DISABLED ]'
+        warn 'local storage device wipe [ safeguard: DISABLED ]'
     fi
-    warn 'local storage device wipe commencing (USB devices are ignored)...'
+    warn 'local storage device wipe commencing (USB devices are ignored) ...'
 
     local doomed_disks
     local doomed_ceph_vgs='vg_name=~ceph*'
     local doomed_metal_vgs='vg_name=~metal*'
+    local vgfailure
 
     # Select the span of devices we care about; RAID, and all compatible transports.
     doomed_disks="$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|'"$metal_transports"')' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ' | sed 's/ *$//')"
@@ -404,10 +405,22 @@ pave() {
     #
 
     # NUKE LVMs
-    vgscan
+    vgscan >&2 && vgs >&2
+    vgfailure=0
     for volume_group in $doomed_ceph_vgs $doomed_metal_vgs; do
-        warn "removing all volume groups of name [$volume_group]" && vgremove -f --select $volume_group -y >/dev/null 2>&1 || warn "no $volume_group volumes found"
+        warn "removing all volume groups of name [${volume_group}]" && vgremove -f --select ${volume_group} -y >&2 || warn "no ${volume_group} volumes found"
+        if [ "$(vgs --select $volume_group)" != '' ]; then
+            warn "${volume_group} still exists, this is unexpected. Printing vgs table:"
+            vgs >&2
+            vgfailure=1
+        fi
     done
+    if [ ${vgfailure} -ne 0 ]; then
+        warn 'Failed to remove all volume groups! Try rebooting this node again.'
+        warn "If this persists, try running the manual wipe in the emergency shell and reboot again."
+        warn "After trying the manual wipe, run 'echo b >/proc/sysrq-trigger' to reboot"
+        metal_die "https://github.com/Cray-HPE/docs-csm/blob/main/operations/node_management/Wipe_NCN_Disks.md#basic-wipe"
+    fi
 
     # NUKE BLOCKs
     warn "local storage device wipe targeted devices: [$doomed_disks]"
