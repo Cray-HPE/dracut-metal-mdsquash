@@ -34,6 +34,10 @@ metal_overlay=$(getarg rd.live.overlay)
 [ -z "${metal_overlay}" ] && metal_overlay=LABEL=ROOTRAID
 metal_server=$(getarg metal.server=)
 
+# For ${:+} BASH substitution to work, the value must be null or unset (0 != null in BASH)
+getargbool 0 metal.ipv4 -d -y metal_ipv4 && metal_ipv4=1
+[ "${metal_ipv4}" = 0 ] && metal_ipv4=''
+
 export metal_debug
 export metal_disks
 export metal_nowipe
