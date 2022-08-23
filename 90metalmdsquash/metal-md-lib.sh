@@ -30,10 +30,6 @@ command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 # Honor and obey dmsquash parameters, if a user sets a different rd.live.dir on the cmdline then it
 # should be reflected here as well.
 
-# allow the initrd to change names
-initrd=$(getarg initrd=)
-[ -z "${initrd}" ] && initrd="initrd.img.xz"
-
 # these use getargnum from /lib/dracut-lib.sh; <default> <min> <max>
 metal_sqfs_size_end=$(getargnum 25 25 100 metal.sqfs-md-size)
 overlay_size_end=$(getargnum 150 25 200 metal.oval-md-size)
@@ -55,26 +51,20 @@ live_dir=$(getarg rd.live.dir -d live_dir)
 [ -z "${live_dir}" ] && live_dir="LiveOS"
 
 # name of the squashFS file to download from metal.server, or to look for inside of rd.live.dir
+# dracut defaults to squsahfs.img if undefined, we need to do the same for dracut-live to work.
 squashfs_file=$(getarg rd.live.squashimg=)
-[ -z "${squashfs_file}" ] && squashfs_file=filesystem.squashfs
-
-# Safeguard, if the hostname is missing - try searching for a vanilla filesystem.squashfs file.
-[ "${squashfs_file}" = '.squashfs' ] && squashfs_file=filesystem.squashfs
-
-if [[ -n "$metal_server" ]]; then
-    # this works for breaking the protocol off and finding the base path.
-    IFS=':' read -ra ADDR <<< "$metal_server"
-    metal_uri_scheme=${metal_server%%:*}
-    metal_uri_authority=${metal_server#*:}
-    if [ -z "${metal_uri_scheme}" ] || [ -z "${metal_uri_authority}" ]; then
-        metal_die "Failed to parse the scheme, authority, and path for URI ${metal_server}"
-    fi
-
-    # these local vars are only used for file copies, in http|https they're not used at all.
-    metal_local_dir=${metal_uri_authority%%\?*}
-    metal_local_url=${metal_server#*\?}
-    metal_local_url_authority=${metal_local_url#*=}
-fi
+[ -z "${squashfs_file}" ] && squashfs_file=squashfs.img
+case ${metal_uri_authority} in
+    *\?*)
+        # In this case the URL has the filename; we'll save the file to whatever rd.live.squashimg is set to.
+        squashfs_url="${metal_server}"
+        ;;
+    *)
+        # In this case the URL does not have the filename.
+        squashfs_url="${metal_server}/${squashfs_file}"
+        :
+        ;;
+esac
 
 # rootfallback may be empty, if it is then this block will ignore.
 boot_fallback=$(getarg rootfallback=)
@@ -267,16 +257,20 @@ fetch_sqfs() {
     # TODO: Add md5 check - this may vary between Artifactory/bootstrap and s3/production artifacts at the present time.
     [ -f "$1/${squashfs_file}" ] && echo 0 > /tmp/metalsqfsimg.done && return
     [ -z "$metal_server" ] && warn 'No metal.server=, nothing to download or copy' && echo 0 > /tmp/metalsqfsimg.done && return
+
+    # Remote file support; fetch the file.
     if [ "${metal_uri_scheme}" != "file" ]; then
         (
             set -e
             cd "$1"
-            curl -f ${metal_ipv4:+-4} -O "${metal_server}/${squashfs_file}" > /dev/null 2>&1 && echo "${squashfs_file} downloaded  ... " > debug_log
-            curl -f ${metal_ipv4:+-4} -O "${metal_server}/kernel" > /dev/null 2>&1 && echo 'grabbed the kernel it rode in on ... ' >> debug_log
-            curl -f ${metal_ipv4:+-4} -O "${metal_server}/${initrd}" > /dev/null 2>&1 && echo 'and its initrd ... ' >> debug_log
+            curl -f ${metal_ipv4:+-4} -o ${squashfs_file} "${squashfs_url}" > download.stdout 2> download.stderr
         ) || warn 'Failed to download ; may retry'
+
+    # File support; copy the authority to tmp; tmp auto-clears on root-pivot.
     else
-        # File support; copy the authority to tmp; tmp auto-clears on root-pivot.
+        metal_local_dir=${metal_uri_authority%%\?*}
+        metal_local_url=${metal_server#*\?}
+        metal_local_url_authority=${metal_local_url#*=}
         [ -z "$metal_local_url_authority" ] && metal_die "Missing LABEL=<FSLABEL> on $metal_server"
 
         # Mount read-only to prevent harm to the device; we literally just need to pull the files off it.
@@ -286,8 +280,6 @@ fetch_sqfs() {
             set -e
             cd "$1"
             cp -pv "/tmp/source/${metal_local_dir#//}/${squashfs_file}" . && echo "copied ${squashfs_file} ... " > debug_log
-            cp -pv "/tmp/source/${metal_local_dir#//}/kernel" . && echo 'grabbed the kernel we rode in on ... ' >> debug_log
-            cp -pv "/tmp/source/${metal_local_dir#//}${initrd}" . && echo 'and its initrd ... ' >> debug_log
         ) || warn 'Failed to copy ; may retry'
         umount -v /tmp/source
     fi
