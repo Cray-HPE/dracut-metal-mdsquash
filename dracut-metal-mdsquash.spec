@@ -21,10 +21,8 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
-%define namespace dracut
 # disable compressing files
 %define __os_install_post %{nil}
-%define intranamespace_name metal-mdsquash
 %define x_y_z %(echo $VERSION)
 %define release_extra %(if [ -e "%{_sourcedir}/_release_extra" ] ; then cat "%{_sourcedir}/_release_extra"; else echo ""; fi)
 %define source_name %{name}
@@ -33,7 +31,7 @@
 # Primary package definition #
 ################################################################################
 
-Name: %{namespace}-%{intranamespace_name}
+Name: %(echo $NAME)
 Packager: <doomslayer@hpe.com>
 Release: 1
 Vendor: Cray HPE
