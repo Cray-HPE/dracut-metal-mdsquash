@@ -146,24 +146,34 @@ These drivers schemes are all defined by the rule generator, [`metal-genrules.sh
 
 > Set the size for the new SQFS partition.
 > Buyer beware this does not resize, this applies for new partitions.
-> - `Default: 25`
-> - `Unit: Gigabytes`
+> The maximum is determined by 100% minus the minimums of the other two required, customizable partitions.
+> - `Default: 5`
+> - `Min: 5`
+> - `Max: 60`
+> - `Unit: Percent`
 
 
 ##### `metal.oval-md-size`
 
-> Set the size for the new SQFS partition.
+> Set the size for the new root overlay partition.
 > Buyer beware this does not resize, this applies for new partitions.
-> - `Default: 150`
-> - `Unit: Gigabytes`
+> The maximum is determined by 100% minus the minimums of the other two required, customizable partitions.
+> - `Default: 65`
+> - `Min: 20`
+> - `Max: 75`
+> - `Unit: Percent`
 
 
 ##### `metal.aux-md-size`
 
-> Set the size for the new SQFS partition.
+> Set the size for the new auxiliary (cloud-init customized) partition.
 > Buyer beware this does not resize, this applies for new partitions.
-> - `Default: 150`
-> - `Unit: Gigabytes`
+> The maximum is determined by 100% minus the minimums of the other two required, customizable partitions.
+> - `Default: 30`
+> - `Min: 20`
+> - `Max: 75`
+> - `Unit: Percent`
+
 
 #### dmsquashlive customizations
 

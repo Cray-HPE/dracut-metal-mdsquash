@@ -31,9 +31,9 @@ command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 # should be reflected here as well.
 
 # these use getargnum from /lib/dracut-lib.sh; <default> <min> <max>
-metal_sqfs_size_end=$(getargnum 25 25 100 metal.sqfs-md-size)
-overlay_size_end=$(getargnum 150 25 200 metal.oval-md-size)
-auxillary_size_end=$(getargnum 150 0 200 metal.aux-md-size)
+metal_sqfs_size=$(getargnum 5 5 60 metal.sqfs-md-size)
+overlay_size=$(getargnum 20 65 75 metal.oval-md-size)
+auxillary_size=$(getargnum 20 30 75 metal.aux-md-size)
 
 # The time (in seconds) for delaying the wipe once the wipe has been invoked.
 metal_wipe_delay=$(getargnum 5 2 60 metal.wipe-delay)
@@ -162,7 +162,7 @@ make_raid_store() {
     
         parted --wipesignatures -m --align=opt --ignore-busy -s "/dev/$disk" -- mklabel gpt \
             mkpart esp fat32 2048s 500MB set 1 esp on \
-            mkpart primary xfs 500MB "${metal_sqfs_size_end}GB"
+            mkpart primary xfs 500MB "${metal_sqfs_size}%"
         _trip_udev
 
         # NVME partitions have a "p" to delimit the partition number.
@@ -201,11 +201,20 @@ make_raid_overlay() {
 
     local oval_raid_parts=''
     local aux_raid_parts=''
-    local oval_end="$((overlay_size_end + metal_sqfs_size_end))"
-    local aux_end="$((auxillary_size_end + oval_end))"
+    
+    # Find the boundaries for each partition.
+    local oval_end="$((metal_sqfs_size + overlay_size))"
+    local aux_end="$((oval_end + auxillary_size))"
+    local total="$((oval_end + aux_end))"
+
+    # The sum must not exceed 100%.    
+    if [[ $((oval_end + aux_end)) -gt 100 ]]; then
+        metal_die "The given partition sizing yields [${total}], the sum of the SQFS, ROOT, and AUX sizes must not exceed 100%"
+    fi
+
     for disk in "${md_disks[@]}"; do
-        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfs_size_end}GB" "${oval_end}GB"
-        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary "${oval_end}GB" "${aux_end}GB"
+        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfs_size}%" "${oval_end}%"
+        parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary "${oval_end}%" "${aux_end}%"
 
         # NVME partitions have a "p" to delimit the partition number.
         if [[ "$disk" =~ "nvme" ]]; then
