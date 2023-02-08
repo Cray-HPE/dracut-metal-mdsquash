@@ -25,7 +25,7 @@
 
 # called by dracut cmd
 check() {
-    require_binaries mdadm xfs_admin || return 1
+    require_binaries blkid cut curl efibootmgr head lsblk mdadm mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail vgs vgscan xfs_admin || return 1
     return 0
 }
 
@@ -44,7 +44,7 @@ installkernel() {
 
 # called by dracut
 install() {
-    inst_multiple cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs parted seq sort tail wc vgs vgscan xfs_admin
+    inst_multiple blkid cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail wc vgs vgscan xfs_admin
     # install our callables
     inst_simple "$moddir/mdadm.conf" "/etc/mdadm.conf"
     inst_simple "$moddir/metal-md-lib.sh" "/lib/metal-md-lib.sh"
@@ -60,6 +60,7 @@ install() {
     inst_hook pre-mount 10 "$moddir/metal-kdump.sh"
     inst_hook pre-pivot 10 "$moddir/metal-update-fstab.sh"
     inst_hook pre-pivot 11 "$moddir/metal-udev.sh"
+    inst_hook pre-pivot 12 "$moddir/metal-log.sh"
 
     # dracut needs to know we must have the initqueue, we have no initqueue hooks to inherit the call.
     dracut_need_initqueue

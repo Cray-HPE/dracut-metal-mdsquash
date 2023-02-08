@@ -72,6 +72,13 @@ _load_dracut_dep
 ##############################################################################
 # constant: METAL_DONE_FILE_PAVED
 #
+# Log directory.
+export METAL_LOG_DIR='/var/log/metal'
+mkdir -p $METAL_LOG_DIR
+
+##############################################################################
+# constant: METAL_DONE_FILE_PAVED
+#
 # This file path present a file that the wipe function creates when it is 
 # invoked. The existence of the file implies the wipe code as been invoked,
 # the contents of the file can be interpretted to determine what the wipe
@@ -79,12 +86,21 @@ _load_dracut_dep
 export METAL_DONE_FILE_PAVED='/tmp/metalpave.done'
 
 ##############################################################################
-# constant: metal_transports
+# constant: metal_subsystems
 #
-# PIPE-DELIMITED-LIST of Transports to acknowledge from `lsblk` queries; these transports are 
-# exclusively cleaned and partitioned, all others on the node are left alone.
+# PIPE-DELIMITED-LIST of SUBSYSTEMS to acknowledge from `lsblk` queries; anything listed here is in
+# the cross-hairs for wiping and formatting.
+# NOTE: To find values for this, run `lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS`
 # MAINTAINER NOTE: DO NOT ADD USB or ANY REMOVABLE MEDIA TRANSPORT in order to mitigate accidents.
-export metal_transports="sata|nvme|sas"
+export metal_subsystems='scsi|nvme'
+
+##############################################################################
+# constant: metal_subsystems_ignore
+#
+# PIPE-DELIMITED-LIST of Transports to acknowledge from `lsblk` queries; these subsystems are
+# excluded from any operations performed by this dracut module.
+# NOTE: To find values for this, run `lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS`
+export metal_subsystems_ignore='usb'
 
 ##############################################################################
 # costant: metal_fstab
@@ -103,7 +119,7 @@ export metal_fsopts_xfs=noatime,largeio,inode64,swalloc,allocsize=131072k
 #
 # Define the size that is considered to fit the "small" disk form factor. These
 # usually serve critical functions.
-export metal_disk_small=524288000000
+export metal_disk_small=375809638400
 
 ##############################################################################
 # constant: metal_disk_large
@@ -175,68 +191,58 @@ metal_die() {
     fi
 }
 
-
 ##############################################################################
-# function: metal_resolve_disk
+# function: metal_scand
 #
-# Function returns a space delemited list of tuples, each tuple contains the
-# size (in bytes) of a disk, and the disk handle itself. This output is
-# compatible with metal_resolve_disk.
+# Returns a sorted, space delimited list of disks. Each element in the list is
+# a tuple representing a disk; the size of the disk (in bytes), and
+# device-mapper name.
 #
 # usage:
 #
-#   Return disks except, ignoring the first two used by the OS:
-# 
-#       metal_scand $((metal_disks + 1))
-# 
-#   Return the OS disks:
+#     metal_scand
 #
-#      md_disks=();for disk in seq 1 $metal_disks; do md_disk=$(metal_scand $disk | cut -d ' ' -f1) ; echo $md_disk; md_disks+=( $md_disk ); done; echo ${md_disks[@]}
+# output:
+#
+#     10737418240,sdd 549755813888,sda 549755813888,sdb 1099511627776,sdc
 #
 metal_scand() {
-    local disk_offset=${1:-$metal_disks}
-    local disks
-    disks="$(lsblk -b -l -d -o SIZE,NAME,TYPE,TRAN |\
-        grep -E '('"$metal_transports"')' |\
+    echo -n "$(lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS |\
+        grep -E '('"$metal_subsystems"')' |\
+        grep -v -E '('"$metal_subsystems_ignore"')' |\
         sort -h |\
         grep -vE 'p[0-9]+$' |\
-        awk '{print $1 "," $2}' |\
-        tail -n +${disk_offset} |\
+        awk '{print ($1 > '$metal_ignore_threshold') ? $1 "," $2 : ""}' |\
         tr '\n' ' ' |\
         sed 's/ *$//')"
-    echo $disks
 }
 
 ##############################################################################
 # function: metal_resolve_disk
 #
-# Sorts a list of disks, returning the first disk that's larger than the 
-# given constraint.
+# Given a disk tuple from metal_scand and a minimum size, print the disk if it's
+# larger than the given size otherwise print nothing.
+# Also verified whether the disk has children or not, if it does then it's not
+# eligible. Since all disks are wiped to start with, if a disk has children when
+# this function would be called then it's already spoken for.
 #
-# The output of this lsblk command is ideal for this function:
-#
-#   lsblk -b -l -o SIZE,NAME,TYPE,TRAN | grep -E '(sata|nvme|sas)' | sort -h | awk '{print $1 "," $2}' 
+# This is useful for iterating through a list of devices and ignoring ones that
+# are insufficient.
 #
 # usage:
 #
-#   metal_resolve_disk "size,name [size,name]" floor/minimum_size
+#   metal_resolve_disk size,name floor/minimum_size
 #
-# example(s):
-#
-#   metal_resolve_disk "480103981056,sdc 1920383410176,sdb" 1048576000000
 metal_resolve_disk() {
-    local disks=$1
+    local disk=$1
     local minimum_size=$(echo $2 | sed 's/,.*//')
-    local found=0
-    for disk in $disks; do
-        name="$(echo $disk | sed 's/,/ /g' | awk '{print $2}')"
-        size="$(echo $disk | sed 's/,/ /g' | awk '{print $1}')"
-        if [ "${size}" -gt $minimum_size ]; then
-            found=1
-        fi 
-    done
-    printf $name
-    [ $found = 1 ] && return 0 || return 1
+    name="$(echo $disk | sed 's/,/ /g' | awk '{print $2}')"
+    size="$(echo $disk | sed 's/,/ /g' | awk '{print $1}')"
+    if ! lsblk --fs --json "/dev/${name}" | grep -q children ; then
+        if [ "${size}" -gt "${minimum_size}" ]; then
+            echo -n "$name"
+        fi
+    fi
 }
 
 ##############################################################################
@@ -257,12 +263,10 @@ metal_paved() {
         case "$rc" in
             1)
                 # 1 indicates the pave function ran and the disks were wiped.
-                echo >&2 'Disks have been wiped.'
                 return 0
                 ;;
             0)
                 # 0 indicates the pave function was cleanly bypassed.
-                echo >&2 'Wipe was skipped.'
                 return 0
                 ;;
             *)

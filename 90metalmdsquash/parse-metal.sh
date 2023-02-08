@@ -44,3 +44,38 @@ export metal_nowipe
 export metal_overlay
 export metal_server
 export metal_ipv4
+
+metal_minimum_disk_size=$(getargnum 16 0 1000000000 metal.min-disk-size)
+# convert Gigabytes to bytes
+metal_ignore_threshold=$((metal_minimum_disk_size*1024**3))
+export metal_ignore_threshold
+
+# root must never be empty; if it is then nothing will boot - dracut will never find anything todo.
+root=$(getarg root)
+case "$root" in
+    live:/dev/*)
+        sqfs_drive_url=${root///dev\/disk\/by-}
+        sqfs_drive_spec=${sqfs_drive_url#*:}
+        sqfs_drive_scheme=${sqfs_drive_spec%%/*}
+        sqfs_drive_authority=${sqfs_drive_spec#*/}
+        ;;
+    live:*)
+        sqfs_drive_url=${root#live:}
+        sqfs_drive_spec=${sqfs_drive_url#*:}
+        sqfs_drive_scheme=${sqfs_drive_spec%%=*}
+        sqfs_drive_authority=${sqfs_drive_spec#*=}
+        ;;
+    '')
+        warn "No root; root needed - the system will likely fail to boot."
+        # do not fail, allow dracut to handle everything in case an operator/admin is doing something.
+        ;;
+    kdump)
+        :
+        ;;
+    *)
+        warn "alien root! unrecognized root= parameter: root=${root}"
+        ;;
+esac
+
+export sqfs_drive_scheme
+export sqfs_drive_authority
