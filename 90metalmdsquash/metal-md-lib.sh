@@ -27,24 +27,21 @@
 command -v getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
 command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
-# Honor and obey dmsquash parameters, if a user sets a different rd.live.dir on the cmdline then it
-# should be reflected here as well.
-
 # these use getargnum from /lib/dracut-lib.sh; <default> <min> <max>
 metal_sqfs_size_end=$(getargnum 25 25 100 metal.sqfs-md-size)
 overlay_size_end=$(getargnum 150 25 200 metal.oval-md-size)
-auxillary_size_end=$(getargnum 150 0 200 metal.aux-md-size)
+aux_size_end=$(getargnum 150 0 200 metal.aux-md-size)
 
 # The time (in seconds) for delaying the wipe once the wipe has been invoked.
 metal_wipe_delay=$(getargnum 5 2 60 metal.wipe-delay)
 
 # this is passed to mdadm during creation; default is redundant mirrors
-metal_mdlevel=$(getarg metal.md-level=)
-[ -z "${metal_mdlevel}" ] && metal_mdlevel=mirror
+metal_md_level=$(getarg metal.md-level=)
+[ -z "${metal_md_level}" ] && metal_md_level=mirror
 
 # Handle single-disk situations.
 mdadm_raid_devices="--raid-devices=$metal_disks"
-[ $metal_disks = 1 ] && mdadm_raid_devices="$mdadm_raid_devices --force"
+[ "$metal_disks" -eq 1 ] && mdadm_raid_devices="$mdadm_raid_devices --force"
 
 # directory to download new artifacts to, and look for old artifacts in.
 live_dir=$(getarg rd.live.dir -d live_dir)
@@ -85,29 +82,6 @@ case $boot_drive_scheme in
         ;;
 esac
 
-# root must never be empty; if it is then nothing will boot - dracut will never find anything todo.
-root=$(getarg root)
-case "$root" in
-    live:/dev/*)
-        sqfs_drive_url=${root///dev\/disk\/by-}
-        sqfs_drive_spec=${sqfs_drive_url#*:}
-        export sqfs_drive_scheme=${sqfs_drive_spec%%/*}
-        export sqfs_drive_authority=${sqfs_drive_spec#*/}
-        ;;
-    live:*)
-        sqfs_drive_url=${root#live:}
-        sqfs_drive_spec=${sqfs_drive_url#*:}
-        export sqfs_drive_scheme=${sqfs_drive_spec%%=*}
-        export sqfs_drive_authority=${sqfs_drive_spec#*=}
-        ;;
-    '')
-        warn "No root; root needed - the system will likely fail to boot."
-        # do not fail, allow dracut to handle everything in case an operator/admin is doing something.
-        ;;
-    *)
-        warn "alien root! unrecognized root= parameter: root=${root}"
-        ;;
-esac
 # support CDLABEL by overriding it to LABEL, CDLABEL only means anything in other dracut modules
 # and those modules will parse it out of root= (not our variable) - normalize it in our context.
 [ "${sqfs_drive_scheme}" = 'CDLABEL' ] || sqfs_drive_scheme=LABEL
@@ -153,31 +127,37 @@ make_raid_store() {
         echo 0 > /tmp/metalsqfsdisk.done && return
     fi
 
+    local disks
+    IFS=" " read -r -a disks <<< "$@"
+
+    if [ "${#disks[@]}" -lt "${metal_disks}" ]; then
+        metal_die "${FUNCNAME[0]} was called with ${#disks[@]} disks but it requires [$metal_disks]! Can not continue."
+    fi
+
     # Loop through our disks and make our partitions needed for a squashFS storage:
     # - BOOTRAID : For fallback booting.
     # - SQFSRAID : For stowing squashFS images.
-    local boot_raid_parts=''
-    local sqfs_raid_parts=''
-    for disk in "${md_disks[@]}"; do
+    local boot_raid_parts=()
+    local sqfs_raid_parts=()
+    for disk in "${disks[@]}"; do
     
         parted --wipesignatures -m --align=opt --ignore-busy -s "/dev/$disk" -- mklabel gpt \
             mkpart esp fat32 2048s 500MB set 1 esp on \
             mkpart primary xfs 500MB "${metal_sqfs_size_end}GB"
         _trip_udev
 
-        # NVME partitions have a "p" to delimit the partition number.
+        # NVME partitions have a "p" to delimit the partition number, add this in order to reference properly in the RAID creation.
         if [[ "$disk" =~ "nvme" ]]; then
             disk="${disk}p" 
         fi
 
-        boot_raid_parts="$(trim $boot_raid_parts) /dev/${disk}1"
-        sqfs_raid_parts="$(trim $sqfs_raid_parts) /dev/${disk}2"
+        boot_raid_parts+=( "/dev/${disk}1" )
+        sqfs_raid_parts+=( "/dev/${disk}2" )
     done
 
     # metadata=0.9 for boot files.
-    mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=0.9 --level="$metal_mdlevel" $mdadm_raid_devices ${boot_raid_parts} || metal_die -b "Failed to make filesystem on /dev/md/BOOT"
-
-    mdadm --create /dev/md/SQFS --run --verbose --assume-clean --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${sqfs_raid_parts} || metal_die -b "Failed to make filesystem on /dev/md/SQFS"
+    mdadm --create /dev/md/BOOT --run --verbose --assume-clean --metadata=0.9 --level="$metal_md_level" "$mdadm_raid_devices" "${boot_raid_parts[@]}" || metal_die -b "Failed to make filesystem on /dev/md/BOOT"
+    mdadm --create /dev/md/SQFS --run --verbose --assume-clean --metadata=1.2 --level="$metal_md_level" "$mdadm_raid_devices" "${sqfs_raid_parts[@]}" || metal_die -b "Failed to make filesystem on /dev/md/SQFS"
 
     _trip_udev
     mkfs.vfat -F32 -n "${boot_drive_authority}" /dev/md/BOOT || metal_die 'Failed to format bootraid.'
@@ -199,25 +179,32 @@ make_raid_overlay() {
         echo 0 > /tmp/metalovaldisk.done && return
     fi
 
-    local oval_raid_parts=''
-    local aux_raid_parts=''
+    local disks
+    IFS=" " read -r -a disks <<< "$@"
+
+    if [ "${#disks[@]}" -lt "${metal_disks}" ]; then
+        metal_die "${FUNCNAME[0]} was called with ${#disks[@]} disks but it requires [$metal_disks]! Can not continue."
+    fi
+
+    local oval_raid_parts=()
+    local aux_raid_parts=()
     local oval_end="$((overlay_size_end + metal_sqfs_size_end))"
-    local aux_end="$((auxillary_size_end + oval_end))"
-    for disk in "${md_disks[@]}"; do
+    local aux_end="$((aux_size_end + oval_end))"
+    for disk in "${disks[@]}"; do
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary xfs "${metal_sqfs_size_end}GB" "${oval_end}GB"
         parted --wipesignatures --align=opt -m --ignore-busy -s "/dev/$disk" mkpart primary "${oval_end}GB" "${aux_end}GB"
 
-        # NVME partitions have a "p" to delimit the partition number.
+        # NVME partitions have a "p" to delimit the partition number, add this in order to reference properly in the RAID creation.
         if [[ "$disk" =~ "nvme" ]]; then
             disk="${disk}p" 
         fi
 
-        oval_raid_parts="$(trim $oval_raid_parts) /dev/${disk}3"
-        aux_raid_parts="$(trim $aux_raid_parts) /dev/${disk}4"
+        oval_raid_parts+=( "/dev/${disk}3" )
+        aux_raid_parts+=( "/dev/${disk}4" )
     done
 
-    mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_mdlevel" $mdadm_raid_devices ${oval_raid_parts} || metal_die -b "Failed to make filesystem on /dev/md/ROOT"
-    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level='stripe' $mdadm_raid_devices ${aux_raid_parts} || metal_die -b "Failed to make filesystem on /dev/md/AUX"
+    mdadm --create /dev/md/ROOT --assume-clean --run --verbose --metadata=1.2 --level="$metal_md_level" "$mdadm_raid_devices" "${oval_raid_parts[@]}" || metal_die -b "Failed to make filesystem on /dev/md/ROOT"
+    mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level='stripe' "$mdadm_raid_devices" "${aux_raid_parts[@]}" || metal_die -b "Failed to make filesystem on /dev/md/AUX"
 
     _trip_udev
     mkfs.xfs -f -L "${oval_drive_authority}" /dev/md/ROOT || metal_die 'Failed to format overlayFS storage.'
@@ -229,7 +216,6 @@ make_raid_overlay() {
 # Make our dmsquash-live-root overlayFS.
 add_overlayfs() {
     [ -f /tmp/metalovalimg.done ] && return
-    [ -f /tmp/metalovaldisk.done ] || make_raid_overlay
     local mpoint=/metal/ovaldisk
     mkdir -pv ${mpoint}
     if ! mount -v -n -t xfs /dev/md/ROOT "$mpoint"; then
@@ -250,7 +236,7 @@ add_overlayfs() {
     umount -v ${mpoint}
 }
 
-############################################```##################################
+###############################################################################
 ## SquashFS
 # Gets the squashFS file from a URL endpoint or a local endpoint.
 fetch_sqfs() {
@@ -350,24 +336,31 @@ add_sqfs() {
 # MAINTAINER NOTE DO NOT VOID THE AFOREMENTIONED STATEMENT!
 # (these are the busses this scans for from `lsblk`).
 pave() {
-    local log="$METAL_DONE_FILE_PAVED.log"
-    echo '${FUNCNAME[0]} called' >$log
+    local log="${METAL_LOG_DIR}/${FUNCNAME[0]}.log"
+    local doomed_disks
+    local doomed_raids
+    local doomed_volume_groups=( 'vg_name=~ceph*' 'vg_name=~metal*' )
+    local vgfailure
+    echo "${FUNCNAME[0]} called" >>"$log"
     
     # If the done file already exists, do not modify it and do not touch anything.
     # Return 0 because the work was already done and we don't want to layer more runs of this atop
     # the original run.
     if [ -f "$METAL_DONE_FILE_PAVED" ]; then
-        echo "${FUNCNAME[0]} already done" >>$log
-        echo "wipe done file already exists ("$METAL_DONE_FILE_PAVED"); not wiping disks"
+        echo "${FUNCNAME[0]} already done" >>"$log"
+        echo "wipe done file already exists ($METAL_DONE_FILE_PAVED); not wiping disks"
         return 0
     fi
-    mount -v >>$log 2>&1
-    lsblk >>$log 2>&1
-    ls -l /dev/md* >>$log 2>&1
-    ls -l /dev/sd* >>$log 2>&1
-    ls -l /dev/nvme* >>$log 2>&1
-    cat /proc/mdstat >>$log 2>&1
-    if [ "$metal_nowipe" != 0 ]; then
+    {
+        mount -v
+        lsblk
+        ls -l /dev/md*
+        ls -l /dev/sd*
+        ls -l /dev/nvme*
+        cat /proc/mdstat
+    } >>"$log" 2>&1
+
+    if [ "$metal_nowipe" -ne 0 ]; then
         echo "${FUNCNAME[0]} skipped: metal.no-wipe=${metal_nowipe}" >>$log
         warn 'local storage device wipe [ safeguard: ENABLED  ]'
         warn 'local storage devices will not be wiped.'
@@ -377,14 +370,6 @@ pave() {
     fi
     warn 'local storage device wipe commencing (USB devices are ignored) ...'
 
-    local doomed_disks
-    local doomed_ceph_vgs='vg_name=~ceph*'
-    local doomed_metal_vgs='vg_name=~metal*'
-    local vgfailure
-
-    # Select the span of devices we care about; RAID, and all compatible transports.
-    doomed_disks="$(lsblk -l -o SIZE,NAME,TYPE,TRAN | grep -E '(raid|'"$metal_transports"')' | sort -u | awk '{print "/dev/"$2}' | tr '\n' ' ' | sed 's/ *$//')"
-
     warn 'nothing can be done to stop this except one one thing ...'
     warn "... power this node off within the next [$metal_wipe_delay] seconds to prevent any and all operations ..."
     while [ "${metal_wipe_delay}" -ge 0 ]; do
@@ -392,47 +377,74 @@ pave() {
         sleep 1 && local metal_wipe_delay=$((${metal_wipe_delay} - 1)) && echo "${metal_wipe_delay} $unit"
     done
 
-    #
-    # NUKES: these go in order from logical (e.g. LVM) -> block (e.g. block devices from lsblk) -> physical (e.g. RAID and other controller tertiary to their members).
-    #
-
-    # NUKE LVMs
+    # 1. NUKE LVMs
+    # Update/scan for any vgs and then erase all of them. None should be mounted let alone even active at this point because we're in the initramFS.
     vgscan >&2 && vgs >&2
     vgfailure=0
-    for volume_group in $doomed_ceph_vgs $doomed_metal_vgs; do
-        warn "removing all volume groups of name [${volume_group}]" && vgremove -f --select ${volume_group} -y >&2 || warn "no ${volume_group} volumes found"
-        if [ "$(vgs --select $volume_group)" != '' ]; then
+    for volume_group in "${doomed_volume_groups[@]}"; do
+        warn "removing all volume groups of name [${volume_group}]"
+        vgremove -f --select "${volume_group}" -y >&2 || warn "no ${volume_group} volumes found"
+        if [ "$(vgs --select "$volume_group")" != '' ]; then
             warn "${volume_group} still exists, this is unexpected. Printing vgs table:"
-            vgs >&2
             vgfailure=1
+            vgs >&2
         fi
     done
     if [ ${vgfailure} -ne 0 ]; then
         warn 'Failed to remove all volume groups! Try rebooting this node again.'
-        warn "If this persists, try running the manual wipe in the emergency shell and reboot again."
-        warn "After trying the manual wipe, run 'echo b >/proc/sysrq-trigger' to reboot"
-        metal_die "https://github.com/Cray-HPE/docs-csm/blob/main/operations/node_management/Wipe_NCN_Disks.md#basic-wipe"
+        warn 'If this persists, try running the manual wipe in the emergency shell and reboot again.'
+        warn 'After trying the manual wipe, run 'echo b >/proc/sysrq-trigger' to reboot'
+        metal_die 'https://github.com/Cray-HPE/docs-csm/blob/main/operations/node_management/Wipe_NCN_Disks.md#basic-wipe'
     fi
 
-    # NUKE BLOCKs
-    warn "local storage device wipe targeted devices: [$doomed_disks]"
-    for doomed_disk in $doomed_disks; do
-        wipefs --all --force $doomed_disk* 2> /dev/null
+    # 2. NUKE RAIDs
+    # Use mdraid-cleanup, and then for good measure run wipefs against the raid to erase any signatures left behind.
+    doomed_raids="$(lsblk -l -o NAME,TYPE | grep raid | sort -u | awk '{print "/dev/"$1}' | tr '\n' ' ' | sed 's/ *$//')"
+    warn "local storage device wipe is targeting the following RAID(s): [$doomed_raids]"
+    for doomed_raid in $doomed_raids; do
+        wipefs --all --force "$doomed_raid" >>"$log" 2>&1
     done
 
-    # NUKE RAIDs
-    mdraid-cleanup >/dev/null 2>&1 # this is very noisy and useless to see but this call is needed.
+    # 3. NUKE BLOCKs
+    # Wipe each selected disk and its partitions.
+    doomed_disks="$(lsblk -b -d -l -o NAME,SUBSYSTEMS,SIZE | grep -E '('"$metal_subsystems"')' | grep -v -E '('"$metal_subsystems_ignore"')' | sort -u | awk '{print ($3 > '$metal_ignore_threshold') ? "/dev/"$1 : ""}' | tr '\n' ' ' | sed 's/ *$//')"
+    warn "local storage device wipe is targeting the following block devices: [$doomed_disks]"
+    for doomed_disk in $doomed_disks; do
+        wipefs --all --force "$doomed_disk"*
+    done
+
+    # 4. Cleanup mdadm
+    # Now that the signatures and volume groups are wiped/gone, mdraid-cleanup can mop up and left
+    # over /dev/md handles.
+    {
+        lsblk
+        mdraid-cleanup
+        lsblk
+    } >>"$log" 2>&1
+
+    # 5. Notify the kernel of the partition changes
+    # NOTE: This could be done in the same loop that we wipe devices, however mileage has varied.
+    #       Running this as a standalone step has had better results.
+    for doomed_disk in $doomed_disks; do
+        {
+            lsblk "$doomed_disk"
+            partprobe "$doomed_disk"
+            lsblk "$doomed_disk"
+        } >>"$log" 2>&1
+    done
 
     _trip_udev
 
     warn 'local storage disk wipe complete' && echo 1 > "$METAL_DONE_FILE_PAVED"
-    echo "${FUNCNAME[0]} done" >>$log
-    mount -v >>$log 2>&1
-    lsblk >>$log 2>&1
-    ls -l /dev/md* >>$log 2>&1
-    ls -l /dev/sd* >>$log 2>&1
-    ls -l /dev/nvme* >>$log 2>&1
-    cat /proc/mdstat >>$log 2>&1
+    {
+        mount -v
+        lsblk
+        ls -l /dev/md*
+        ls -l /dev/sd*
+        ls -l /dev/nvme*
+        cat /proc/mdstat
+        echo "${FUNCNAME[0]} done" >>$log
+    } >>"$log" 2>&1
 }
 
 ##############################################################################
@@ -440,7 +452,12 @@ pave() {
 # Conclude and exit the dracut init loop.
 # Provide the expected devices to dmsquash-live
 metal_md_exit() {
-    [ ! -b /dev/md/SQFS ] && return 1
-    xfs_admin -L "${sqfs_drive_authority}" /dev/md/SQFS
-    ln -s null /dev/metal
+    local log="${METAL_LOG_DIR}/${FUNCNAME[0]}.log"
+    {
+        [ ! -b /dev/md/SQFS ] && return 1
+        xfs_admin -L "${sqfs_drive_authority}" /dev/md/SQFS
+        mdraid_start
+        _trip_udev
+        ln -sf null /dev/metal
+    } >>"$log" 2>&1
 }

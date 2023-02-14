@@ -47,14 +47,22 @@ pave
 
 # At this point this module is required; a disk must be created or the system has nothing to boot.
 # Die if no viable disks are found; otherwise continue to disk creation functions.
-if [ ! -f /tmp/metalsqfsdisk.done ]; then
+if [ ! -f /tmp/metalsqfsdisk.done ] && [ "${metal_nowipe}" -eq 0 ]; then
     md_disks=()
-    for disk in $(seq 1 $metal_disks); do
-        md_disk=$(metal_resolve_disk $(metal_scand $disk) $metal_disk_small)
-        md_disks+=( $md_disk )
+    disks="$(metal_scand)"
+    IFS=" " read -r -a pool <<< "$disks"
+    for disk in "${pool[@]}"; do
+        if [ "${#md_disks[@]}" -eq "${metal_disks}" ]; then
+            break
+        fi
+        md_disk=$(metal_resolve_disk "$disk" "$metal_disk_small")
+        if [ -n "${md_disk}" ]; then
+            md_disks+=("$md_disk")
+        fi
     done
-    if [ ${#md_disks[@]} = 0 ]; then
-        metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or smaller!"
+
+    if [ "${#md_disks[@]}" -lt "$metal_disks" ]; then
+        metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or larger, all were too small or had filesystems present!"
         exit 1
     else
         echo >&2 "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
@@ -62,7 +70,8 @@ if [ ! -f /tmp/metalsqfsdisk.done ]; then
 fi
 
 # Create disks.
-[ ! -f /tmp/metalsqfsdisk.done ] && make_raid_store
+[ ! -f /tmp/metalsqfsdisk.done ] && make_raid_store "${md_disks[@]}"
+[ ! -f /tmp/metalovaldisk.done ] && make_raid_overlay "${md_disks[@]}"
 [ ! -f /tmp/metalovalimg.done ] && add_overlayfs
 [ ! -f /tmp/metalsqfsimg.done ] && add_sqfs
 
