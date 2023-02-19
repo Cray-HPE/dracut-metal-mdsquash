@@ -33,8 +33,7 @@ command -v _overlayFS_path_spec > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 case "$(getarg root)" in 
     kdump)
-        /sbin/initqueue --settled /sbin/metal-md-scan
-        
+
         # Ensure nothing else in this script is invoked in this case.
         exit 0
         ;;

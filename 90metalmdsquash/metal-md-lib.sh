@@ -71,7 +71,7 @@ boot_drive_authority=${boot_fallback#*=}
 [ -z "$boot_drive_authority" ] && boot_drive_authority=BOOTRAID
 case $boot_drive_scheme in
     PATH | path | UUID | uuid | LABEL | label)
-        info "bootloader will be located on ${boot_drive_scheme}=${boot_drive_authority}"
+        printf '%-12s: %s\n' 'bootloader' "${boot_drive_scheme}=${boot_drive_authority}"
         ;;
     '')
         # no-op; drive disabled
@@ -88,7 +88,7 @@ esac
 [ -z "${sqfs_drive_authority}" ] && sqfs_drive_scheme=SQFSRAID
 case $sqfs_drive_scheme in
     PATH | path | UUID | uuid | LABEL | label)
-        info "SquashFS file is on ${sqfs_drive_scheme}=${sqfs_drive_authority}"
+        printf '%-12s: %s\n' 'squashFS' "${sqfs_drive_scheme}=${sqfs_drive_authority}"
         ;;
     *)
         metal_die "Unsupported sqfs-drive-scheme ${sqfs_drive_scheme}\nSupported schemes: PATH, UUID, and LABEL"
@@ -100,7 +100,7 @@ oval_drive_scheme=${metal_overlay%%=*}
 oval_drive_authority=${metal_overlay#*=}
 case "$oval_drive_scheme" in
     PATH | path | UUID | uuid | LABEL | label)
-        info "Overlay is on ${oval_drive_scheme}=${oval_drive_authority}"
+        printf '%-12s: %s\n' 'overlay' "${oval_drive_scheme}=${oval_drive_authority}"
         ;;
     '')
         # no-op; disabled
@@ -402,7 +402,10 @@ pave() {
     doomed_raids="$(lsblk -l -o NAME,TYPE | grep raid | sort -u | awk '{print "/dev/"$1}' | tr '\n' ' ' | sed 's/ *$//')"
     warn "local storage device wipe is targeting the following RAID(s): [$doomed_raids]"
     for doomed_raid in $doomed_raids; do
-        wipefs --all --force "$doomed_raid" >>"$log" 2>&1
+        {
+        wipefs --all --force "$doomed_raid"
+        mdadm --stop "$doomed_raid"
+        } >>"$log" 2>&1
     done
 
     # 3. NUKE BLOCKs
@@ -410,20 +413,16 @@ pave() {
     doomed_disks="$(lsblk -b -d -l -o NAME,SUBSYSTEMS,SIZE | grep -E '('"$metal_subsystems"')' | grep -v -E '('"$metal_subsystems_ignore"')' | sort -u | awk '{print ($3 > '$metal_ignore_threshold') ? "/dev/"$1 : ""}' | tr '\n' ' ' | sed 's/ *$//')"
     warn "local storage device wipe is targeting the following block devices: [$doomed_disks]"
     for doomed_disk in $doomed_disks; do
-        wipefs --all --force "$doomed_disk"*
+        {
+            mdadm --zero-superblock "$doomed_disk"*
+            wipefs --all --force "$doomed_disk"*
+        } >>"$log" 2>&1
     done
 
-    # 4. Cleanup mdadm
-    # Now that the signatures and volume groups are wiped/gone, mdraid-cleanup can mop up and left
-    # over /dev/md handles.
-    {
-        lsblk
-        mdraid-cleanup
-        lsblk
-    } >>"$log" 2>&1
+    _trip_udev
 
-    # 5. Notify the kernel of the partition changes
-    # NOTE: This could be done in the same loop that we wipe devices, however mileage has varied.
+    # 4. Notify the kernel of the partition changes
+    # NOTE: This could be done in the same loop where we wipe devices, however mileage has varied.
     #       Running this as a standalone step has had better results.
     for doomed_disk in $doomed_disks; do
         {
@@ -432,8 +431,6 @@ pave() {
             lsblk "$doomed_disk"
         } >>"$log" 2>&1
     done
-
-    _trip_udev
 
     warn 'local storage disk wipe complete' && echo 1 > "$METAL_DONE_FILE_PAVED"
     {
