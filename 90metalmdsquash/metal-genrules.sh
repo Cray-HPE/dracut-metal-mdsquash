@@ -29,7 +29,7 @@ command -v getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
 
 case "$(getarg root)" in 
     kdump)
-        /sbin/initqueue --settled /sbin/metal-md-scan
+        /sbin/initqueue --settled --onetime --unique /sbin/metal-md-scan
         
         # Ensure nothing else in this script is invoked in this case.
         exit 0
@@ -59,7 +59,7 @@ case "${metal_uri_scheme:-}" in
         ;;
     '')
         # Boot from block device.
-        /sbin/initqueue --settled /sbin/metal-md-scan
+        /sbin/initqueue --settled --onetime --unique /sbin/metal-md-scan
         ;;
     *)
         warn "Unknown driver $metal_server; metal.server ignored/discarded"

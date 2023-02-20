@@ -39,11 +39,11 @@ disks_exist || exit 1
 # Now that disks exist it's worthwhile to load the libraries.
 command -v pave > /dev/null 2>&1 || . /lib/metal-md-lib.sh
 
-# Wipe; this returns early if a wipe was already done.
-pave
-
 # Check for existing RAIDs
 /sbin/metal-md-scan
+
+# Wipe; this returns early if a wipe was already done.
+pave
 
 # At this point this module is required; a disk must be created or the system has nothing to boot.
 # Die if no viable disks are found; otherwise continue to disk creation functions.
@@ -65,7 +65,7 @@ if [ ! -f /tmp/metalsqfsdisk.done ] && [ "${metal_nowipe}" -eq 0 ]; then
         metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or larger, all were too small or had filesystems present!"
         exit 1
     else
-        echo >&2 "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
+        echo >&2 "Found the following disk(s) for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
     fi
 fi
 
