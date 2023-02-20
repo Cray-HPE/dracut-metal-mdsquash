@@ -218,10 +218,10 @@ add_overlayfs() {
     [ -f /tmp/metalovalimg.done ] && return
     local mpoint=/metal/ovaldisk
     mkdir -pv ${mpoint}
-    if ! mount -v -n -t xfs /dev/md/ROOT "$mpoint"; then
+    if ! mount -n -t xfs /dev/md/ROOT "$mpoint"; then
 
         # try shasta-1.3 formatting or die.
-        mount -v -n -t ext4 /dev/md/ROOT "$mpoint" \
+        mount -n -t ext4 /dev/md/ROOT "$mpoint" \
             || metal_die "Failed to mount ${oval_drive_authority} as xfs or ext4"
     fi
 
@@ -233,7 +233,7 @@ add_overlayfs() {
         "${mpoint}/${live_dir}/${metal_overlayfs_id}" \
         "${mpoint}/${live_dir}/${metal_overlayfs_id}/../ovlwork"
     echo 1 > /tmp/metalovalimg.done && info 'OverlayFS is ready ...'
-    umount -v ${mpoint}
+    umount ${mpoint}
 }
 
 ###############################################################################
@@ -261,13 +261,13 @@ fetch_sqfs() {
 
         # Mount read-only to prevent harm to the device; we literally just need to pull the files off it.
         mkdir -vp /tmp/source
-        mount -v  -n -o ro -L "$metal_local_url_authority" /tmp/source || metal_die "Failed to mount $metal_local_url_authority from $metal_server"
+        mount -n -o ro -L "$metal_local_url_authority" /tmp/source || metal_die "Failed to mount $metal_local_url_authority from $metal_server"
         (
             set -e
             cd "$1"
             cp -pv "/tmp/source/${metal_local_dir#//}/${squashfs_file}" . && echo "copied ${squashfs_file} ... " > debug_log
         ) || warn 'Failed to copy ; may retry'
-        umount -v /tmp/source
+        umount /tmp/source
     fi
     if [ -f "$1/${squashfs_file}" ]; then
         echo 1 > /tmp/metalsqfsimg.done
@@ -316,10 +316,10 @@ add_sqfs() {
         info "URI host ${uri_host} responds ... "
     fi
     mkdir -pv $sqfs_store
-    if mount -v -n -t xfs /dev/md/SQFS $sqfs_store; then
+    if mount -n -t xfs /dev/md/SQFS $sqfs_store; then
         mkdir -pv "$sqfs_store/$live_dir"
         fetch_sqfs "$sqfs_store/$live_dir" || metal_die 'Failed to fetch squashFS into squashFS storage!'
-        umount -v $sqfs_store
+        umount $sqfs_store
     else
         # No RAID mount, issue warning, delete mount-point and return
         metal_die "Failed to mount /dev/md/SQFS at $sqfs_store"
@@ -348,7 +348,7 @@ pave() {
     # the original run.
     if [ -f "$METAL_DONE_FILE_PAVED" ]; then
         echo "${FUNCNAME[0]} already done" >>"$log"
-        echo "wipe done file already exists ($METAL_DONE_FILE_PAVED); not wiping disks"
+        echo "wipe 'done file' already exists ($METAL_DONE_FILE_PAVED); not wiping disks"
         return 0
     fi
     {
@@ -361,17 +361,19 @@ pave() {
     } >>"$log" 2>&1
 
     if [ "$metal_nowipe" -ne 0 ]; then
-        echo "${FUNCNAME[0]} skipped: metal.no-wipe=${metal_nowipe}" >>$log
         warn 'local storage device wipe [ safeguard: ENABLED  ]'
-        warn 'local storage devices will not be wiped.'
+        warn "local storage devices will not be wiped (${METAL_DOCS_URL}#metalno-wipe)"
         echo 0 > "$METAL_DONE_FILE_PAVED" && return 0
     else
         warn 'local storage device wipe [ safeguard: DISABLED ]'
+        warn "local storage devices WILL be wiped (${METAL_DOCS_URL}#metalno-wipe)"
     fi
-    warn 'local storage device wipe commencing (USB devices are ignored) ...'
+    warn 'local storage device wipe commencing ...'
+    warn "local storage device wipe ignores USB devices and block devices smaller than [$metal_ignore_threshold] bytes."
 
     warn 'nothing can be done to stop this except one one thing ...'
-    warn "... power this node off within the next [$metal_wipe_delay] seconds to prevent any and all operations ..."
+    warn "power this node off within the next [$metal_wipe_delay] second(s) to cancel."
+    warn "NOTE: this delay can be adjusted, see: ${METAL_DOCS_URL}#metalwipe-delay"
     while [ "${metal_wipe_delay}" -ge 0 ]; do
         [ "${metal_wipe_delay}" = 2 ] && unit='second' || unit='seconds'
         sleep 1 && local metal_wipe_delay=$((${metal_wipe_delay} - 1)) && echo "${metal_wipe_delay} $unit"

@@ -77,9 +77,25 @@ export METAL_LOG_DIR='/var/log/metal'
 mkdir -p $METAL_LOG_DIR
 
 ##############################################################################
+# constant: METAL_HASH
+# constant: METAL_DOCS_URL
+#
+# This is the VCS hash for commit that produced this library, it is auto-filled
+# when this module is built into an OS package.
+# This is useful for printing URLs to documentation that are relevant to the
+# library running in an initramFS.
+METAL_HASH='@@metal-hash@@'
+if [[ ${METAL_HASH} =~ 'metal-hash' ]]; then
+    # Default to main if this is running directly out of the repo.
+    METAL_HASH='main'
+fi
+export METAL_HASH
+export METAL_DOCS_URL=https://github.com/Cray-HPE/dracut-metal-mdsquash/tree/${METAL_HASH}
+
+##############################################################################
 # constant: METAL_DONE_FILE_PAVED
 #
-# This file path present a file that the wipe function creates when it is 
+# This file path present a file that the wipe function creates when it is
 # invoked. The existence of the file implies the wipe code as been invoked,
 # the contents of the file can be interpretted to determine what the wipe
 # function actually did (see func metal_paved).
@@ -169,7 +185,7 @@ metal_die() {
     fi
     type die
     echo >&2 "metal_die: $*"
-    echo >&2 "GitHub/Docs: https://github.com/Cray-HPE/dracut-metal-mdsquash"
+    echo >&2 "GitHub/Docs: ${METAL_DOCS_URL}/README.adoc"
     sleep 30 # Leaving time (30seconds) for console/log buffers to catch up.
     if [ "$_reset" = 1 ]; then
         

@@ -60,6 +60,11 @@ Provides: %{module_name}
 %setup -q
 
 %build
+%define hash %(git rev-parse --verify HEAD)
+if [ -n %{hash} ]; then
+    echo %{hash}
+sed -i 's,@@metal-hash@@,%{hash},g' %{module_name}/metal-lib.sh
+fi
 
 %install
 %{__mkdir_p} %{buildroot}%{url_dracut_doc}

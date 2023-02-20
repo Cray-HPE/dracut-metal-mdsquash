@@ -65,7 +65,7 @@ if [ ! -f /tmp/metalsqfsdisk.done ] && [ "${metal_nowipe}" -eq 0 ]; then
         metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or larger, all were too small or had filesystems present!"
         exit 1
     else
-        echo >&2 "Found the following disks for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
+        echo >&2 "Found the following disk(s) for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
     fi
 fi
 
