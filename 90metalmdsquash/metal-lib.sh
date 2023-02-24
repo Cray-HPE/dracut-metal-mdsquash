@@ -140,7 +140,7 @@ export metal_disk_small=375809638400
 ##############################################################################
 # constant: metal_disk_large
 #
-# Define the size that is considered to fit the "large" disk form factor. These 
+# Define the size that is considered to fit the "large" disk form factor. These
 # are commonly if not always used as ephemeral disks.
 export metal_disk_large=1048576000000
 
@@ -188,15 +188,15 @@ metal_die() {
     echo >&2 "GitHub/Docs: ${METAL_DOCS_URL}/README.adoc"
     sleep 30 # Leaving time (30seconds) for console/log buffers to catch up.
     if [ "$_reset" = 1 ]; then
-        
+
         echo >&2 'A reset was requested ... '
-        
+
         if command -v efibootmgr >/dev/null 2>&1; then
             echo >&2 'Setting bootnext to bootcurrent ...'
             bootcurrent="$(efibootmgr | grep -i bootcurrent | awk '{print $NF}')"
             efibootmgr -n $bootcurrent >/dev/null
         fi
-        
+
         if [ "${metal_debug:-0}" = 0 ]; then
             echo b >/proc/sysrq-trigger
         else
@@ -237,7 +237,7 @@ metal_scand() {
 # function: metal_resolve_disk
 #
 # Given a disk tuple from metal_scand and a minimum size, print the disk if it's
-# larger than the given size otherwise print nothing.
+# larger than or equal to the given size otherwise print nothing.
 # Also verified whether the disk has children or not, if it does then it's not
 # eligible. Since all disks are wiped to start with, if a disk has children when
 # this function would be called then it's already spoken for.
@@ -255,7 +255,7 @@ metal_resolve_disk() {
     name="$(echo $disk | sed 's/,/ /g' | awk '{print $2}')"
     size="$(echo $disk | sed 's/,/ /g' | awk '{print $1}')"
     if ! lsblk --fs --json "/dev/${name}" | grep -q children ; then
-        if [ "${size}" -gt "${minimum_size}" ]; then
+        if [ "${size}" -ge "${minimum_size}" ]; then
             echo -n "$name"
         fi
     fi
@@ -313,18 +313,18 @@ metal_paved() {
 #      disks_exist || exit 1
 #
 disks_exist() {
-    
+
     # Wait for devices to exist
     if ls /dev/sd* > /dev/null 2>&1; then
-    
+
         # SD devices discovered.
         return 0
     elif ls /dev/nvme* > /dev/null 2>&1; then
-    
+
         # NVME devices discovered.
         return 0
     fi
-    
+
     # No block devices detected.
     return 1
 }
