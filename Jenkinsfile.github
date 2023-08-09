@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,13 @@
  */
 @Library('csm-shared-library') _
 
-def isStable = env.TAG_NAME != null ? true : false
-def sleImage = 'artifactory.algol60.net/csm-docker/stable/csm-docker-sle'
+
+// Only consider X.Y.Z and X.Y.Z tags as stable.
+// Never consider X.Y.Z{[a|b|rc} or X.Y.Z.* tags as stable.
+// The ==~ operator performs an exact match.
+def stableToken = ~/v?\d+\.\d+\.\d+/
+def isStable = (env.TAG_NAME != null & env.TAG_NAME ==~ stableToken) ? true : false
+def sleImage = 'artifactory.algol60.net/csm-docker/stable/csm-docker-sle:latest'
 pipeline {
 
     agent {
@@ -42,80 +47,68 @@ pipeline {
 
     environment {
         NAME = getRepoName()
-        VERSION = sh(returnStdout: true, script: "git describe --tags | tr -s '-' '~' | tr -d '^v'").trim()
+        PRIMARY_NODE = "${env.NODE_NAME}"
+        VERSION = sh(returnStdout: true, script: "git describe --tags | tr -s '-' '~' | sed 's/^v//'").trim()
     }
+
 
     stages {
 
         stage('Build & Publish') {
 
-            matrix {
+            stages {
 
-                agent {
-                    node {
-                        label "metal-gcp-builder"
-                        customWorkspace "${env.WORKSPACE}/${sleVersion}"
+                stage('Prepare: RPMs') {
+                    agent {
+                        docker {
+                            label "${PRIMARY_NODE}"
+                            reuseNode true
+                            image "${sleImage}"
+                        }
+                    }
+                    steps {
+                        runLibraryScript("addRpmMetaData.sh", "${env.NAME}.spec")
+                        sh "make prepare"
+                        sh "git update-index --assume-unchanged ${env.NAME}.spec"
                     }
                 }
 
-                axes {
-                    axis {
-                        name 'sleVersion'
-                        values 15.3, 15.4
+                stage('Build: RPMs') {
+                    agent {
+                        docker {
+                            label "${PRIMARY_NODE}"
+                            reuseNode true
+                            image "${sleImage}"
+                        }
+                    }
+                    steps {
+                        sh "make rpm"
                     }
                 }
 
-                stages {
-
-                    stage('Prepare: RPMs') {
-                        agent {
-                            docker {
-                                label 'docker'
-                                reuseNode true
-                                image "${sleImage}:${sleVersion}"
-                            }
-                        }
-                        steps {
-                            runLibraryScript("addRpmMetaData.sh", "${env.NAME}.spec")
-                            sh "make prepare"
-                            sh "git update-index --assume-unchanged ${env.NAME}.spec"
+                stage('Publish: RPMs') {
+                    agent {
+                        docker {
+                            label "${PRIMARY_NODE}"
+                            reuseNode true
+                            args "-v /home/jenkins/.ssh:/home/jenkins/.ssh"
+                            image "${sleImage}"
                         }
                     }
-
-                    stage('Build: RPMs') {
-                        agent {
-                            docker {
-                                label 'docker'
-                                reuseNode true
-                                image "${sleImage}:${sleVersion}"
-                            }
-                        }
-                        steps {
-                            sh "make rpm"
-                        }
-                    }
-
-                    stage('Publish: RPMs') {
-                        steps {
-                            script {
-                                def sles_version_parts = "${sleVersion}".tokenize('.')
-                                def sles_major = "${sles_version_parts[0]}"
-                                def sles_minor = "${sles_version_parts[1]}"
-                                publishCsmRpms(
-                                        arch: "noarch",
-                                        component: env.NAME,
-                                        isStable: isStable,
-                                        os: "sle-${sles_major}sp${sles_minor}",
-                                        pattern: "dist/rpmbuild/RPMS/noarch/*.rpm",
-                                )
-                                publishCsmRpms(
-                                        arch: "src",
-                                        component: env.NAME,
-                                        isStable: isStable,
-                                        os: "sle-${sles_major}sp${sles_minor}",
-                                        pattern: "dist/rpmbuild/SRPMS/*.rpm",
-                                )
-                            }
+                    steps {
+                        script {
+                            publishCsmRpms(arch: "noarch",
+                                    component: env.NAME,
+                                    isStable: isStable,
+                                    os: "noos",
+                                    pattern: "dist/rpmbuild/RPMS/noarch/*.rpm",
+                            )
+                            publishCsmRpms(arch: "src",
+                                    component: env.NAME,
+                                    isStable: isStable,
+                                    os: "noos",
+                                    pattern: "dist/rpmbuild/SRPMS/*.rpm",
+                            )
                         }
                     }
                 }
