@@ -371,7 +371,7 @@ pave() {
     warn 'local storage device wipe commencing ...'
     warn "local storage device wipe ignores USB devices and block devices smaller than [$metal_ignore_threshold] bytes."
 
-    warn 'nothing can be done to stop this except one one thing ...'
+    warn 'nothing can be done to stop this except one thing ...'
     warn "power this node off within the next [$metal_wipe_delay] second(s) to cancel."
     warn "NOTE: this delay can be adjusted, see: ${METAL_DOCS_URL}#metalwipe-delay"
     while [ "${metal_wipe_delay}" -ge 0 ]; do
