@@ -96,7 +96,7 @@ export metal_fstab=/etc/fstab.metal
 # constant: metal_fsopts_xfs
 #
 # COMMA-DELIMITED-LIST of fsopts for XFS
-export metal_fsopts_xfs=noatime,largeio,inode64,swalloc,allocsize=131072k
+export metal_fsopts_xfs=defaults
 
 ##############################################################################
 # constant: metal_disk_small
