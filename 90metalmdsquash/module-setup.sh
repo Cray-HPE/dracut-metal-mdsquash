@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -25,43 +25,43 @@
 
 # called by dracut cmd
 check() {
-    require_binaries blkid cut curl efibootmgr head lsblk mdadm mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail vgs vgscan xfs_admin || return 1
-    return 0
+  require_binaries blkid cut curl efibootmgr head lsblk mdadm mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail vgs vgscan xfs_admin || return 1
+  return 0
 }
 
 # called by dracut cmd
 depends() {
-    # mdraid is needed for using RAIDs
-    # network is needed for fetching squashfs.
-    echo network mdraid
-    return 0
+  # mdraid is needed for using RAIDs
+  # network is needed for fetching squashfs.
+  echo network mdraid
+  return 0
 }
 
 # called by dracut cmd
 installkernel() {
-    instmods hostonly='' loop raid1
+  instmods hostonly='' loop raid1
 }
 
 # called by dracut
 install() {
-    inst_multiple blkid cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail wc vgs vgscan xfs_admin
-    # install our callables
-    inst_simple "$moddir/mdadm.conf" "/etc/mdadm.conf"
-    inst_simple "$moddir/metal-md-lib.sh" "/lib/metal-md-lib.sh"
-    inst_simple "$moddir/metal-lib.sh" "/lib/metal-lib.sh"
-    inst_script "$moddir/metal-md-disks.sh" /sbin/metal-md-disks
-    inst_script "$moddir/metal-md-scan.sh" /sbin/metal-md-scan
-    # install our hooks
-    inst_hook cmdline 10 "$moddir/parse-metal.sh"
-    inst_hook pre-udev 10 "$moddir/metal-genrules.sh"
+  inst_multiple blkid cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail wc vgs vgscan xfs_admin
+  # install our callables
+  inst_simple "$moddir/mdadm.conf" "/etc/mdadm.conf"
+  inst_simple "$moddir/metal-md-lib.sh" "/lib/metal-md-lib.sh"
+  inst_simple "$moddir/metal-lib.sh" "/lib/metal-lib.sh"
+  inst_script "$moddir/metal-md-disks.sh" /sbin/metal-md-disks
+  inst_script "$moddir/metal-md-scan.sh" /sbin/metal-md-scan
+  # install our hooks
+  inst_hook cmdline 10 "$moddir/parse-metal.sh"
+  inst_hook pre-udev 10 "$moddir/metal-genrules.sh"
 
-    # before loading the copy any new fstab.metal into place
-    # copy udev rules into the sysroot available during pre-pivot
-    inst_hook pre-mount 10 "$moddir/metal-kdump.sh"
-    inst_hook pre-pivot 10 "$moddir/metal-update-fstab.sh"
-    inst_hook pre-pivot 11 "$moddir/metal-udev.sh"
-    inst_hook pre-pivot 12 "$moddir/metal-log.sh"
+  # before loading the copy any new fstab.metal into place
+  # copy udev rules into the sysroot available during pre-pivot
+  inst_hook pre-mount 10 "$moddir/metal-kdump.sh"
+  inst_hook pre-pivot 10 "$moddir/metal-update-fstab.sh"
+  inst_hook pre-pivot 11 "$moddir/metal-udev.sh"
+  inst_hook pre-pivot 12 "$moddir/metal-log.sh"
 
-    # dracut needs to know we must have the initqueue, we have no initqueue hooks to inherit the call.
-    dracut_need_initqueue
+  # dracut needs to know we must have the initqueue, we have no initqueue hooks to inherit the call.
+  dracut_need_initqueue
 }

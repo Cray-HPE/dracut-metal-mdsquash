@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -27,13 +27,13 @@
 
 command -v getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
 
-case "$(getarg root)" in 
-    kdump)
-        /sbin/initqueue --settled --onetime --unique /sbin/metal-md-scan
-        
-        # Ensure nothing else in this script is invoked in this case.
-        exit 0
-        ;;
+case "$(getarg root)" in
+  kdump)
+    /sbin/initqueue --settled --onetime --unique /sbin/metal-md-scan
+
+    # Ensure nothing else in this script is invoked in this case.
+    exit 0
+    ;;
 esac
 
 command -v wait_for_dev > /dev/null 2>&1 || . /lib/dracut-lib.sh
@@ -44,24 +44,24 @@ export metal_uri_scheme=${metal_server%%:*}
 export metal_uri_authority=${metal_server#*:}
 
 case "${metal_uri_scheme:-}" in
-    file|http|https)
-        wait_for_dev -n /dev/metal
-        /sbin/initqueue --settled /sbin/metal-md-disks
-        ;;
-    s3)
-        metal_die "s3-direct is not implemented, try http/https instead"
-        ;;
-    ftp)
-        metal_die "insecure ftp is not implemented"
-        ;;
-    scp|sftp)
-        metal_die "credential based transfer (scp and sftp) is not implemented, try http/https instead"
-        ;;
-    '')
-        # Boot from block device.
-        /sbin/initqueue --settled --onetime --unique /sbin/metal-md-scan
-        ;;
-    *)
-        warn "Unknown driver $metal_server; metal.server ignored/discarded"
-        ;;
+  file | http | https)
+    wait_for_dev -n /dev/metal
+    /sbin/initqueue --settled /sbin/metal-md-disks
+    ;;
+  s3)
+    metal_die "s3-direct is not implemented, try http/https instead"
+    ;;
+  ftp)
+    metal_die "insecure ftp is not implemented"
+    ;;
+  scp | sftp)
+    metal_die "credential based transfer (scp and sftp) is not implemented, try http/https instead"
+    ;;
+  '')
+    # Boot from block device.
+    /sbin/initqueue --settled --onetime --unique /sbin/metal-md-scan
+    ;;
+  *)
+    warn "Unknown driver $metal_server; metal.server ignored/discarded"
+    ;;
 esac

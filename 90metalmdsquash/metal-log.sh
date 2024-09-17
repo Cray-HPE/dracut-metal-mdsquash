@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2023 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2023-2024 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -28,4 +28,4 @@
 command -v disks_exist > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 mkdir -p "/sysroot${METAL_LOG_DIR}/bootstrap"
-cp -p "${METAL_LOG_DIR}/"* "/sysroot${METAL_LOG_DIR}/bootstrap/" 2>/dev/null
+cp -p "${METAL_LOG_DIR}/"* "/sysroot${METAL_LOG_DIR}/bootstrap/" 2> /dev/null
