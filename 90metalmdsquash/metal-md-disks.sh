@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -48,25 +48,25 @@ pave
 # At this point this module is required; a disk must be created or the system has nothing to boot.
 # Die if no viable disks are found; otherwise continue to disk creation functions.
 if [ ! -f /tmp/metalsqfsdisk.done ] && [ "${metal_nowipe}" -eq 0 ]; then
-    md_disks=()
-    disks="$(metal_scand)"
-    IFS=" " read -r -a pool <<< "$disks"
-    for disk in "${pool[@]}"; do
-        if [ "${#md_disks[@]}" -eq "${metal_disks}" ]; then
-            break
-        fi
-        md_disk=$(metal_resolve_disk "$disk" "$metal_disk_small")
-        if [ -n "${md_disk}" ]; then
-            md_disks+=("$md_disk")
-        fi
-    done
-
-    if [ "${#md_disks[@]}" -lt "$metal_disks" ]; then
-        metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or larger, all were too small or had filesystems present!"
-        exit 1
-    else
-        echo >&2 "Found the following disk(s) for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
+  md_disks=()
+  disks="$(metal_scand)"
+  IFS=" " read -r -a pool <<< "$disks"
+  for disk in "${pool[@]}"; do
+    if [ "${#md_disks[@]}" -eq "${metal_disks}" ]; then
+      break
     fi
+    md_disk=$(metal_resolve_disk "$disk" "$metal_disk_small")
+    if [ -n "${md_disk}" ]; then
+      md_disks+=("$md_disk")
+    fi
+  done
+
+  if [ "${#md_disks[@]}" -lt "$metal_disks" ]; then
+    metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or larger, all were too small or had filesystems present!"
+    exit 1
+  else
+    echo >&2 "Found the following disk(s) for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
+  fi
 fi
 
 # Create disks.
@@ -77,15 +77,15 @@ fi
 
 # Verify our disks were created; satisfy the wait_for_dev hook if they were, otherwise keep waiting.
 if [ -f /tmp/metalsqfsdisk.done ] && [ -f /tmp/metalsqfsimg.done ]; then
-    if [ -n "${metal_overlay:-}" ] && [ ! -f /tmp/metalovalimg.done ]; then
-        # Waiting on overlay creation.
-        exit 1
-    fi    
-    if metal_md_exit; then
-        # This module has finished; this initqueue script needs to exit cleanly.
-        exit 0
-    else
-        # This module had issues trying to exit.
-        metal_die "Failed to setup root dependencies."
-    fi
+  if [ -n "${metal_overlay:-}" ] && [ ! -f /tmp/metalovalimg.done ]; then
+    # Waiting on overlay creation.
+    exit 1
+  fi
+  if metal_md_exit; then
+    # This module has finished; this initqueue script needs to exit cleanly.
+    exit 0
+  else
+    # This module had issues trying to exit.
+    metal_die "Failed to setup root dependencies."
+  fi
 fi

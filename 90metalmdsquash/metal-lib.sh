@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -49,14 +49,14 @@
 # - rd_lib is the library location inside of an initrd.
 # - rt_lib is the library location during runtime.
 _load_dracut_dep() {
-    local rd_lib=/lib/dracut-lib.sh
-    local rt_lib=/usr/lib/dracut/modules.d/99base/dracut-lib.sh
-    if [ -e $rd_lib ]; then
-        lib=${rd_lib}
-    elif [ -e ${rt_lib} ]; then
-        lib=${rt_lib}
-    else
-    >&2 cat << EOF
+  local rd_lib=/lib/dracut-lib.sh
+  local rt_lib=/usr/lib/dracut/modules.d/99base/dracut-lib.sh
+  if [ -e $rd_lib ]; then
+    lib=${rd_lib}
+  elif [ -e ${rt_lib} ]; then
+    lib=${rt_lib}
+  else
+    cat >&2 << EOF
 FATAL ERROR: Neither dracut-lib.sh location exists. Dracut is possibly not installed, or has changed locations:
 - $rt_lib
 - $rd_lib
@@ -64,8 +64,8 @@ FATAL ERROR: Neither dracut-lib.sh location exists. Dracut is possibly not insta
 The metal-lib.sh library can not load in this state.
 EOF
     return 1
-fi
-    command -v die > /dev/null 2>&1 || . $lib
+  fi
+  command -v die > /dev/null 2>&1 || . $lib
 }
 _load_dracut_dep
 
@@ -86,8 +86,8 @@ mkdir -p $METAL_LOG_DIR
 # library running in an initramFS.
 METAL_HASH='@@metal-hash@@'
 if [[ ${METAL_HASH} =~ 'metal-hash' ]]; then
-    # Default to main if this is running directly out of the repo.
-    METAL_HASH='main'
+  # Default to main if this is running directly out of the repo.
+  METAL_HASH='main'
 fi
 export METAL_HASH
 export METAL_DOCS_URL=https://github.com/Cray-HPE/dracut-metal-mdsquash/tree/${METAL_HASH}
@@ -150,7 +150,7 @@ export metal_disk_large=1048576000000
 # _trip_udev will call udevadm triggers to settle
 # this is useful for populating /dev/disk/by-label/ after FS changes.
 _trip_udev() {
-    udevadm settle >&2
+  udevadm settle >&2
 }
 
 ##############################################################################
@@ -162,12 +162,12 @@ _trip_udev() {
 #   overlay-SQFSRAID-cfc752e2-ebb3-4fa3-92e9-929e599d3ad2
 #
 _overlayFS_path_spec() {
-    # if no label is given, grab the default array's UUID and use the default label
-    if [ -b /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority} ]; then
-        echo "overlay-${sqfs_drive_authority:-SQFSRAID}-$(blkid -s UUID -o value /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority})"
-    else
-        echo "overlay-${sqfs_drive_authority:-SQFSRAID}-$(blkid -s UUID -o value /dev/md/SQFS)"
-    fi
+  # if no label is given, grab the default array's UUID and use the default label
+  if [ -b /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority} ]; then
+    echo "overlay-${sqfs_drive_authority:-SQFSRAID}-$(blkid -s UUID -o value /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority})"
+  else
+    echo "overlay-${sqfs_drive_authority:-SQFSRAID}-$(blkid -s UUID -o value /dev/md/SQFS)"
+  fi
 }
 
 ##############################################################################
@@ -177,34 +177,34 @@ _overlayFS_path_spec() {
 #
 # Optionally provide -b to reset the system.
 metal_die() {
-    local reset=0
-    local bootcurrent
-    if [ "$1" = "-b" ]; then
-        _reset=1
-        shift
+  local reset=0
+  local bootcurrent
+  if [ "$1" = "-b" ]; then
+    _reset=1
+    shift
+  fi
+  type die
+  echo >&2 "metal_die: $*"
+  echo >&2 "GitHub/Docs: ${METAL_DOCS_URL}/README.adoc"
+  sleep 30 # Leaving time (30seconds) for console/log buffers to catch up.
+  if [ "$_reset" = 1 ]; then
+
+    echo >&2 'A reset was requested ... '
+
+    if command -v efibootmgr > /dev/null 2>&1; then
+      echo >&2 'Setting bootnext to bootcurrent ...'
+      bootcurrent="$(efibootmgr | grep -i bootcurrent | awk '{print $NF}')"
+      efibootmgr -n $bootcurrent > /dev/null
     fi
-    type die
-    echo >&2 "metal_die: $*"
-    echo >&2 "GitHub/Docs: ${METAL_DOCS_URL}/README.adoc"
-    sleep 30 # Leaving time (30seconds) for console/log buffers to catch up.
-    if [ "$_reset" = 1 ]; then
 
-        echo >&2 'A reset was requested ... '
-
-        if command -v efibootmgr >/dev/null 2>&1; then
-            echo >&2 'Setting bootnext to bootcurrent ...'
-            bootcurrent="$(efibootmgr | grep -i bootcurrent | awk '{print $NF}')"
-            efibootmgr -n $bootcurrent >/dev/null
-        fi
-
-        if [ "${metal_debug:-0}" = 0 ]; then
-            echo b >/proc/sysrq-trigger
-        else
-            echo >&2 'This server is running in debug mode, the reset was ignored.'
-        fi
+    if [ "${metal_debug:-0}" = 0 ]; then
+      echo b > /proc/sysrq-trigger
     else
-        die
+      echo >&2 'This server is running in debug mode, the reset was ignored.'
     fi
+  else
+    die
+  fi
 }
 
 ##############################################################################
@@ -223,14 +223,14 @@ metal_die() {
 #     10737418240,sdd 549755813888,sda 549755813888,sdb 1099511627776,sdc
 #
 metal_scand() {
-    echo -n "$(lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS |\
-        grep -E '('"$metal_subsystems"')' |\
-        grep -v -E '('"$metal_subsystems_ignore"')' |\
-        sort -h |\
-        grep -vE 'p[0-9]+$' |\
-        awk '{print ($1 > '$metal_ignore_threshold') ? $1 "," $2 : ""}' |\
-        tr '\n' ' ' |\
-        sed 's/ *$//')"
+  echo -n "$(lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS \
+    | grep -E '('"$metal_subsystems"')' \
+    | grep -v -E '('"$metal_subsystems_ignore"')' \
+    | sort -h \
+    | grep -vE 'p[0-9]+$' \
+    | awk '{print ($1 > '$metal_ignore_threshold') ? $1 "," $2 : ""}' \
+    | tr '\n' ' ' \
+    | sed 's/ *$//')"
 }
 
 ##############################################################################
@@ -250,15 +250,15 @@ metal_scand() {
 #   metal_resolve_disk size,name floor/minimum_size
 #
 metal_resolve_disk() {
-    local disk=$1
-    local minimum_size=$(echo $2 | sed 's/,.*//')
-    name="$(echo $disk | sed 's/,/ /g' | awk '{print $2}')"
-    size="$(echo $disk | sed 's/,/ /g' | awk '{print $1}')"
-    if ! lsblk --fs --json "/dev/${name}" | grep -q children ; then
-        if [ "${size}" -ge "${minimum_size}" ]; then
-            echo -n "$name"
-        fi
+  local disk=$1
+  local minimum_size=$(echo $2 | sed 's/,.*//')
+  name="$(echo $disk | sed 's/,/ /g' | awk '{print $2}')"
+  size="$(echo $disk | sed 's/,/ /g' | awk '{print $1}')"
+  if ! lsblk --fs --json "/dev/${name}" | grep -q children; then
+    if [ "${size}" -ge "${minimum_size}" ]; then
+      echo -n "$name"
     fi
+  fi
 }
 
 ##############################################################################
@@ -273,28 +273,28 @@ metal_resolve_disk() {
 #      metal_paved || exit 1
 #
 metal_paved() {
-    local rc
-    if [ -f "$METAL_DONE_FILE_PAVED" ]; then
-        rc="$(cat "$METAL_DONE_FILE_PAVED")"
-        case "$rc" in
-            1)
-                # 1 indicates the pave function ran and the disks were wiped.
-                return 0
-                ;;
-            0)
-                # 0 indicates the pave function was cleanly bypassed.
-                return 0
-                ;;
-            *)
-                echo >&2 "Wipe has emitted an unknown error code: $rc"
-                return 2
-                ;;
-        esac
-    else
-        # No file indicates the wipe function hasn't been called yet.
-        echo >&2 "No sign of wipe function being called (yet). $METAL_DONE_FILE_PAVED was not found"
-        return 1
-    fi
+  local rc
+  if [ -f "$METAL_DONE_FILE_PAVED" ]; then
+    rc="$(cat "$METAL_DONE_FILE_PAVED")"
+    case "$rc" in
+      1)
+        # 1 indicates the pave function ran and the disks were wiped.
+        return 0
+        ;;
+      0)
+        # 0 indicates the pave function was cleanly bypassed.
+        return 0
+        ;;
+      *)
+        echo >&2 "Wipe has emitted an unknown error code: $rc"
+        return 2
+        ;;
+    esac
+  else
+    # No file indicates the wipe function hasn't been called yet.
+    echo >&2 "No sign of wipe function being called (yet). $METAL_DONE_FILE_PAVED was not found"
+    return 1
+  fi
 }
 
 ##############################################################################
@@ -314,17 +314,17 @@ metal_paved() {
 #
 disks_exist() {
 
-    # Wait for devices to exist
-    if ls /dev/sd* > /dev/null 2>&1; then
+  # Wait for devices to exist
+  if ls /dev/sd* > /dev/null 2>&1; then
 
-        # SD devices discovered.
-        return 0
-    elif ls /dev/nvme* > /dev/null 2>&1; then
+    # SD devices discovered.
+    return 0
+  elif ls /dev/nvme* > /dev/null 2>&1; then
 
-        # NVME devices discovered.
-        return 0
-    fi
+    # NVME devices discovered.
+    return 0
+  fi
 
-    # No block devices detected.
-    return 1
+  # No block devices detected.
+  return 1
 }
