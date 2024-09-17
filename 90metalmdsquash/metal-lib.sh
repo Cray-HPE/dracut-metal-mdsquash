@@ -251,7 +251,7 @@ metal_scand() {
 #
 metal_resolve_disk() {
   local disk=$1
-  local minimum_size=$(echo $2 | sed 's/,.*//')
+  local minimum_size=$2
   name="$(echo $disk | sed 's/,/ /g' | awk '{print $2}')"
   size="$(echo $disk | sed 's/,/ /g' | awk '{print $1}')"
   if ! lsblk --fs --json "/dev/${name}" | grep -q children; then
