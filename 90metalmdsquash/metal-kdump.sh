@@ -50,8 +50,7 @@ LIVE_DIR=$(getarg rd.live.dir -d live_dir)
 #
 # - Creates the KDUMP_SAVEDIR for kdump to save crashes into.
 # - Creates a symbolic link that /kdump/boot will resolve for finding the kernel and System.map
-# - Updates the metal fstab to bind mount the KDUMP_SAVEDIR to /var/crash on a running system through metalfs.service
-# - Creates a README.txt file that describes the created directories on the overlayFS base partition. 
+# - Creates a README.txt file that describes the created directories on the overlayFS base partition.
 function prepare {
 
     local kernel_savedir
