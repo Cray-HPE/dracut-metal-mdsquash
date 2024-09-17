@@ -34,7 +34,7 @@
 # - constant       : A constant used throughout this module and dependent modules.
 # - core function  : A function that must not fail to execute when this library loads.
 # - function       : A function that can be used by any dracut module sourcing this library.
-[ "${metal_debug:-0}" = 0 ] || set -x
+[ "${METAL_DEBUG:-0}" = 0 ] || set -x
 
 ##############################################################################
 # core function: _load_dracut_dep
@@ -73,8 +73,8 @@ _load_dracut_dep
 # constant: METAL_DONE_FILE_PAVED
 #
 # Log directory.
-export METAL_LOG_DIR='/var/log/metal'
-mkdir -p $METAL_LOG_DIR
+export METAL_LOG_DIR="${METAL_LOG_DIR:-/var/log/metal}"
+mkdir -p "$METAL_LOG_DIR"
 
 ##############################################################################
 # constant: METAL_HASH
@@ -90,7 +90,7 @@ if [[ ${METAL_HASH} =~ 'metal-hash' ]]; then
   METAL_HASH='main'
 fi
 export METAL_HASH
-export METAL_DOCS_URL=https://github.com/Cray-HPE/dracut-metal-mdsquash/tree/${METAL_HASH}
+export METAL_DOCS_URL="https://github.com/Cray-HPE/dracut-metal-mdsquash/tree/${METAL_HASH}"
 
 ##############################################################################
 # constant: METAL_DONE_FILE_PAVED
@@ -102,47 +102,47 @@ export METAL_DOCS_URL=https://github.com/Cray-HPE/dracut-metal-mdsquash/tree/${M
 export METAL_DONE_FILE_PAVED='/tmp/metalpave.done'
 
 ##############################################################################
-# constant: metal_subsystems
+# constant: METAL_SUBSYSTEMS
 #
 # PIPE-DELIMITED-LIST of SUBSYSTEMS to acknowledge from `lsblk` queries; anything listed here is in
 # the cross-hairs for wiping and formatting.
 # NOTE: To find values for this, run `lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS`
 # MAINTAINER NOTE: DO NOT ADD USB or ANY REMOVABLE MEDIA TRANSPORT in order to mitigate accidents.
-export metal_subsystems='scsi|nvme'
+export METAL_SUBSYSTEMS='scsi|nvme'
 
 ##############################################################################
-# constant: metal_subsystems_ignore
+# constant: METAL_SUBSYSTEMS_IGNORE
 #
 # PIPE-DELIMITED-LIST of Transports to acknowledge from `lsblk` queries; these subsystems are
 # excluded from any operations performed by this dracut module.
 # NOTE: To find values for this, run `lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS`
-export metal_subsystems_ignore='usb'
+export METAL_SUBSYSTEMS_IGNORE='usb'
 
 ##############################################################################
-# costant: metal_fstab
+# costant: METAL_FSTAB
 #
 # FSTAB for any partition created from a dracut-metal module.
-export metal_fstab=/etc/fstab.metal
+export METAL_FSTAB=/etc/fstab.metal
 
 ##############################################################################
-# constant: metal_fsopts_xfs
+# constant: METAL_FSOPTS_XFS
 #
 # COMMA-DELIMITED-LIST of fsopts for XFS
-export metal_fsopts_xfs=defaults
+export METAL_FSOPTS_XFS=defaults
 
 ##############################################################################
-# constant: metal_disk_small
+# constant: METAL_DISK_SMALL
 #
 # Define the size that is considered to fit the "small" disk form factor. These
 # usually serve critical functions.
-export metal_disk_small=375809638400
+export METAL_DISK_SMALL=375809638400
 
 ##############################################################################
-# constant: metal_disk_large
+# constant: METAL_DISK_LARGE
 #
 # Define the size that is considered to fit the "large" disk form factor. These
 # are commonly if not always used as ephemeral disks.
-export metal_disk_large=1048576000000
+export METAL_DISK_LARGE=1048576000000
 
 ##############################################################################
 # function: _trip_udev
@@ -163,10 +163,10 @@ _trip_udev() {
 #
 _overlayFS_path_spec() {
   # if no label is given, grab the default array's UUID and use the default label
-  if [ -b /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority} ]; then
-    echo "overlay-${sqfs_drive_authority:-SQFSRAID}-$(blkid -s UUID -o value /dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority})"
+  if [ -b "/dev/disk/by-${SQFS_DRIVE_SCHEME,,}/${SQFS_DRIVE_AUTHORITY}" ]; then
+    echo "overlay-${SQFS_DRIVE_AUTHORITY:-SQFSRAID}-$(blkid -s UUID -o value "/dev/disk/by-${SQFS_DRIVE_SCHEME,,}/${SQFS_DRIVE_AUTHORITY}")"
   else
-    echo "overlay-${sqfs_drive_authority:-SQFSRAID}-$(blkid -s UUID -o value /dev/md/SQFS)"
+    echo "overlay-${SQFS_DRIVE_AUTHORITY:-SQFSRAID}-$(blkid -s UUID -o value /dev/md/SQFS)"
   fi
 }
 
@@ -194,10 +194,10 @@ metal_die() {
     if command -v efibootmgr > /dev/null 2>&1; then
       echo >&2 'Setting bootnext to bootcurrent ...'
       bootcurrent="$(efibootmgr | grep -i bootcurrent | awk '{print $NF}')"
-      efibootmgr -n $bootcurrent > /dev/null
+      efibootmgr -n "$bootcurrent" > /dev/null
     fi
 
-    if [ "${metal_debug:-0}" = 0 ]; then
+    if [ "${METAL_DEBUG:-0}" = 0 ]; then
       echo b > /proc/sysrq-trigger
     else
       echo >&2 'This server is running in debug mode, the reset was ignored.'
@@ -224,11 +224,11 @@ metal_die() {
 #
 metal_scand() {
   echo -n "$(lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS \
-    | grep -E '('"$metal_subsystems"')' \
-    | grep -v -E '('"$metal_subsystems_ignore"')' \
+    | grep -E '('"$METAL_SUBSYSTEMS"')' \
+    | grep -v -E '('"$METAL_SUBSYSTEMS_IGNORE"')' \
     | sort -h \
     | grep -vE 'p[0-9]+$' \
-    | awk '{print ($1 > '$metal_ignore_threshold') ? $1 "," $2 : ""}' \
+    | awk '{print ($1 > '"$METAL_IGNORE_THRESHOLD"') ? $1 "," $2 : ""}' \
     | tr '\n' ' ' \
     | sed 's/ *$//')"
 }

@@ -22,32 +22,32 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
-[ "${metal_debug:-0}" = 0 ] || set -x
+[ "${METAL_DEBUG:-0}" = 0 ] || set -x
 command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
-fstab_metal_new=$metal_fstab
-fstab_metal_old=/sysroot$metal_fstab
-fstab_metal_temp=${metal_fstab}.merged
+fstab_metal_new=$METAL_FSTAB
+fstab_metal_old=/sysroot$METAL_FSTAB
+fstab_metal_temp=${METAL_FSTAB}.merged
 
 old_error=0
 new_error=0
 
 # If a new FSTab exists, this copies it regardless if there is no diff.
-if [ -f $fstab_metal_new ]; then
+if [ -f "$fstab_metal_new" ]; then
 
   # If no prior fstab exists, copy the new one into place.
-  if [ ! -f $fstab_metal_old ]; then
+  if [ ! -f "$fstab_metal_old" ]; then
     cp -v "$fstab_metal_new" "$fstab_metal_old"
 
   # If a prior fstab exists, merge it and verify all the labels exist before copying it into place.
-  elif diff -q $fstab_metal_old $fstab_metal_new; then
+  elif diff -q "$fstab_metal_old" "$fstab_metal_new"; then
 
     # Make new fstab file, remove commented out lines.
     cat "$fstab_metal_old" "$fstab_metal_new" | sort -u | grep -v '^#' > "$fstab_metal_temp"
 
     # Verify the old fstab file was valid.
-    for label in $(grep LABEL $fstab_metal_old | awk '{print $1}' | awk -F '=' '{print $NF}'); do
-      if ! blkid -L $label > /dev/null; then
+    for label in $(grep LABEL "$fstab_metal_old" | awk '{print $1}' | awk -F '=' '{print $NF}'); do
+      if ! blkid -L "$label" > /dev/null; then
         echo >&2 'Old fstab is invalid.'
         old_error=1
         break
@@ -55,8 +55,8 @@ if [ -f $fstab_metal_new ]; then
     done
 
     # Verify the new fstab file is valid.
-    for label in $(grep LABEL $fstab_metal_new | awk '{print $1}' | awk -F '=' '{print $NF}'); do
-      if ! blkid -L $label > /dev/null; then
+    for label in $(grep LABEL "$fstab_metal_new" | awk '{print $1}' | awk -F '=' '{print $NF}'); do
+      if ! blkid -L "$label" > /dev/null; then
         echo >&2 'New fstab is invalid.'
 
         # The new fstab contains new partitions that do not exist.

@@ -23,7 +23,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 # metal-genrules.sh
-[ "${metal_debug:-0}" = 0 ] || set -x
+[ "${METAL_DEBUG:-0}" = 0 ] || set -x
 
 command -v getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
 
@@ -40,10 +40,10 @@ command -v wait_for_dev > /dev/null 2>&1 || . /lib/dracut-lib.sh
 command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 # Load and execute with desired URL driver.
-export metal_uri_scheme=${metal_server%%:*}
-export metal_uri_authority=${metal_server#*:}
+export METAL_URI_SCHEME="${METAL_SERVER%%:*}"
+export METAL_URI_AUTHORITY=${METAL_SERVER#*:}
 
-case "${metal_uri_scheme:-}" in
+case "${METAL_URI_SCHEME:-}" in
   file | http | https)
     wait_for_dev -n /dev/metal
     /sbin/initqueue --settled /sbin/metal-md-disks
@@ -62,6 +62,6 @@ case "${metal_uri_scheme:-}" in
     /sbin/initqueue --settled --onetime --unique /sbin/metal-md-scan
     ;;
   *)
-    warn "Unknown driver $metal_server; metal.server ignored/discarded"
+    warn "Unknown driver $METAL_SERVER; metal.server ignored/discarded"
     ;;
 esac
