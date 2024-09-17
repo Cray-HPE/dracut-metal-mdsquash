@@ -99,7 +99,7 @@ export METAL_DOCS_URL="https://github.com/Cray-HPE/dracut-metal-mdsquash/tree/${
 # invoked. The existence of the file implies the wipe code as been invoked,
 # the contents of the file can be interpretted to determine what the wipe
 # function actually did (see func metal_paved).
-export METAL_DONE_FILE_PAVED='/tmp/metalpave.done'
+export METAL_DONE_FILE_PAVED="${METAL_DONE_FILE_PAVED:-/tmp/metalpave.done}"
 
 ##############################################################################
 # constant: METAL_SUBSYSTEMS
@@ -108,7 +108,7 @@ export METAL_DONE_FILE_PAVED='/tmp/metalpave.done'
 # the cross-hairs for wiping and formatting.
 # NOTE: To find values for this, run `lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS`
 # MAINTAINER NOTE: DO NOT ADD USB or ANY REMOVABLE MEDIA TRANSPORT in order to mitigate accidents.
-export METAL_SUBSYSTEMS='scsi|nvme'
+export METAL_SUBSYSTEMS="${METAL_SUBSYSTEMS:-scsi|nvme}"
 
 ##############################################################################
 # constant: METAL_SUBSYSTEMS_IGNORE
@@ -116,33 +116,33 @@ export METAL_SUBSYSTEMS='scsi|nvme'
 # PIPE-DELIMITED-LIST of Transports to acknowledge from `lsblk` queries; these subsystems are
 # excluded from any operations performed by this dracut module.
 # NOTE: To find values for this, run `lsblk -b -l -d -o SIZE,NAME,TYPE,SUBSYSTEMS`
-export METAL_SUBSYSTEMS_IGNORE='usb'
+export METAL_SUBSYSTEMS_IGNORE="${METAL_SUBSYSTEMS_IGNORE:-usb}"
 
 ##############################################################################
 # costant: METAL_FSTAB
 #
 # FSTAB for any partition created from a dracut-metal module.
-export METAL_FSTAB=/etc/fstab.metal
+export METAL_FSTAB="${METAL_FSTAB:-/etc/fstab.metal}"
 
 ##############################################################################
 # constant: METAL_FSOPTS_XFS
 #
 # COMMA-DELIMITED-LIST of fsopts for XFS
-export METAL_FSOPTS_XFS=defaults
+export METAL_FSOPTS_XFS="${METAL_FSOPTS_XFS:-defaults}"
 
 ##############################################################################
 # constant: METAL_DISK_SMALL
 #
 # Define the size that is considered to fit the "small" disk form factor. These
 # usually serve critical functions.
-export METAL_DISK_SMALL=375809638400
+export METAL_DISK_SMALL="${METAL_DISK_SMALL:-375809638400}"
 
 ##############################################################################
 # constant: METAL_DISK_LARGE
 #
 # Define the size that is considered to fit the "large" disk form factor. These
 # are commonly if not always used as ephemeral disks.
-export METAL_DISK_LARGE=1048576000000
+export METAL_DISK_LARGE="${METAL_DISK_LARGE:-1048576000000}"
 
 ##############################################################################
 # constant: METAL_IGNORE_THRESHOLD
