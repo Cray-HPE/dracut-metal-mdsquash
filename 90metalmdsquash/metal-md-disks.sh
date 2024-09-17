@@ -23,7 +23,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 # metal-md-disks.sh
-[ "${metal_debug:-0}" = 0 ] || set -x
+[ "${METAL_DEBUG:-0}" = 0 ] || set -x
 
 # This module already ran if /dev/metal exists..
 [ -L /dev/metal ] && exit 0
@@ -47,25 +47,25 @@ pave
 
 # At this point this module is required; a disk must be created or the system has nothing to boot.
 # Die if no viable disks are found; otherwise continue to disk creation functions.
-if [ ! -f /tmp/metalsqfsdisk.done ] && [ "${metal_nowipe}" -eq 0 ]; then
+if [ ! -f /tmp/metalsqfsdisk.done ] && [ "${METAL_NOWIPE}" -eq 0 ]; then
   md_disks=()
   disks="$(metal_scand)"
   IFS=" " read -r -a pool <<< "$disks"
   for disk in "${pool[@]}"; do
-    if [ "${#md_disks[@]}" -eq "${metal_disks}" ]; then
+    if [ "${#md_disks[@]}" -eq "${METAL_DISKS}" ]; then
       break
     fi
-    md_disk=$(metal_resolve_disk "$disk" "$metal_disk_small")
+    md_disk=$(metal_resolve_disk "$disk" "$METAL_DISK_SMALL")
     if [ -n "${md_disk}" ]; then
       md_disks+=("$md_disk")
     fi
   done
 
-  if [ "${#md_disks[@]}" -lt "$metal_disks" ]; then
-    metal_die "No disks were found for the OS that were [$metal_disk_small] (in bytes) or larger, all were too small or had filesystems present!"
+  if [ "${#md_disks[@]}" -lt "$METAL_DISKS" ]; then
+    metal_die "No disks were found for the OS that were [$METAL_DISK_SMALL] (in bytes) or larger, all were too small or had filesystems present!"
     exit 1
   else
-    echo >&2 "Found the following disk(s) for the main RAID array (qty. [$metal_disks]): [${md_disks[*]}]"
+    echo >&2 "Found the following disk(s) for the main RAID array (qty. [$METAL_DISKS]): [${md_disks[*]}]"
   fi
 fi
 
@@ -77,7 +77,7 @@ fi
 
 # Verify our disks were created; satisfy the wait_for_dev hook if they were, otherwise keep waiting.
 if [ -f /tmp/metalsqfsdisk.done ] && [ -f /tmp/metalsqfsimg.done ]; then
-  if [ -n "${metal_overlay:-}" ] && [ ! -f /tmp/metalovalimg.done ]; then
+  if [ -n "${METAL_OVERLAY:-}" ] && [ ! -f /tmp/metalovalimg.done ]; then
     # Waiting on overlay creation.
     exit 1
   fi

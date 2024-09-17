@@ -46,6 +46,7 @@ installkernel() {
 install() {
   inst_multiple blkid cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail wc vgs vgscan xfs_admin
   # install our callables
+  # shellcheck disable=SC2154
   inst_simple "$moddir/mdadm.conf" "/etc/mdadm.conf"
   inst_simple "$moddir/metal-md-lib.sh" "/lib/metal-md-lib.sh"
   inst_simple "$moddir/metal-lib.sh" "/lib/metal-lib.sh"

@@ -26,7 +26,7 @@
 # do not use set -u or -e because it breaks usage of /lib/dracut-lib.sh
 set -o pipefail
 
-[ "${metal_debug:-0}" = 0 ] || set -x
+[ "${METAL_DEBUG:-0}" = 0 ] || set -x
 
 command -v getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
 command -v _overlayFS_path_spec > /dev/null 2>&1 || . /lib/metal-lib.sh
@@ -40,7 +40,7 @@ case "$(getarg root)" in
 esac
 
 OVERLAYFS_PATH=$(_overlayFS_path_spec)
-[ -z ${OVERLAYFS_PATH} ] && warn 'Failed to resolve overlayFS directory. kdump will not generate a system.map in the event of a crash.'
+[ -z "${OVERLAYFS_PATH}" ] && warn 'Failed to resolve overlayFS directory. kdump will not generate a system.map in the event of a crash.'
 LIVE_DIR=$(getarg rd.live.dir -d live_dir)
 [ -z "${LIVE_DIR}" ] && LIVE_DIR="LiveOS"
 
@@ -88,8 +88,8 @@ function load_boot_images {
 
   # Check the overlayFS first for the kernel version, incase a new kernel was installed on a prior boot.
   # Otherwise get the kernel version from the squashFS image.
-  if [ -f /run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinuz ]; then
-    kernel_ver=$(readlink /run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinuz | grep -oP 'vmlinuz-\K\S+')
+  if [ -f "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinuz" ]; then
+    kernel_ver=$(readlink "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinuz" | grep -oP 'vmlinuz-\K\S+')
   elif [ -f /run/rootfsbase/boot/vmlinuz ]; then
     kernel_ver=$(readlink /run/rootfsbase/boot/vmlinuz | grep -oP 'vmlinuz-\K\S+')
   else
@@ -97,10 +97,10 @@ function load_boot_images {
   fi
 
   # If the kernel was upgraded, then the image ill already exist in the OverlayFS.
-  if [ ! -f /run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinux-${kernel_ver}.gz ]; then
+  if [ ! -f "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinux-${kernel_ver}.gz" ]; then
 
     # If the kernel image does not exist, then this is a deployment (first-boot) and the kernel needs to be copied.
-    if [ -f /run/rootfsbase/boot/vmlinux-${kernel_ver}.gz ]; then
+    if [ -f "/run/rootfsbase/boot/vmlinux-${kernel_ver}.gz" ]; then
       kernel_image=/run/rootfsbase/boot/vmlinux-${kernel_ver}.gz
       cp -pv "$kernel_image" /run/initramfs/overlayfs/boot/
     else
@@ -111,12 +111,12 @@ function load_boot_images {
   fi
 
   # If the kernel was upgraded, then the System.map ill already exist in the OverlayFS.
-  if [ ! -f /run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/System.map-${kernel_ver} ]; then
+  if [ ! -f "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/System.map-${kernel_ver}" ]; then
 
     # If the System.map does not exist, then this is a deployment (first-boot) and the System.map needs to be copied.
-    if [ -f /run/rootfsbase/boot/System.map-${kernel_ver} ]; then
+    if [ -f "/run/rootfsbase/boot/System.map-${kernel_ver}" ]; then
       system_map=/run/rootfsbase/boot/System.map-${kernel_ver}
-      cp -pv ${system_map} /run/initramfs/overlayfs/boot/
+      cp -pv "${system_map}" /run/initramfs/overlayfs/boot/
     else
       warn "Failed to resolve System.map-${kernel_ver}; kdump will produce incomplete dumps."
     fi

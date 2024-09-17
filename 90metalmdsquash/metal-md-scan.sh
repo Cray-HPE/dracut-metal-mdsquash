@@ -22,7 +22,7 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 # metal-md-scan.sh
-[ "${metal_debug:-0}" = 0 ] || set -x
+[ "${METAL_DEBUG:-0}" = 0 ] || set -x
 
 # Wait for disks to exist.
 command -v disks_exist > /dev/null 2>&1 || . /lib/metal-lib.sh
@@ -38,8 +38,8 @@ if ! lsmod | grep -q raid1; then
   mdraid_start > /dev/null 2>&1 # Force RAID start.
   mdadm --assemble --scan > /dev/null
   _trip_udev
-  # FIXME: both $sqfs_drive_scheme and $sqfs_drive_authority are available when this runs but they should be better acknowledged/defined in this script context.
-  [ -f "/dev/disk/by-${sqfs_drive_scheme,,}/${sqfs_drive_authority^^:-}" ] && echo 2 > /tmp/metalsqfsdisk.done
+  # FIXME: both $SQFS_DRIVE_SCHEME and $SQFS_DRIVE_AUTHORITY are available when this runs but they should be better acknowledged/defined in this script context.
+  [ -f "/dev/disk/by-${SQFS_DRIVE_SCHEME,,}/${SQFS_DRIVE_AUTHORITY^^:-}" ] && echo 2 > /tmp/metalsqfsdisk.done
   # We can't check for the squashFS image without mounting, but if we have these items we should
   # assume that this is a disk boot already loaded with artifacts or this is a network boot
   # that's about to obtain artifacts into an existing array (/sbin/metal-md-disks.sh).
@@ -56,9 +56,9 @@ fi
 # to an hour or indefinite.
 if [ -d /dev/md ]; then
   for md in $(find /dev/md** -type b); do
-    handle=$(echo -n $md | cut -d '/' -f3)
-    if grep -A 2 $handle /proc/mdstat | grep -qi pending; then
-      mdadm --readwrite $md
+    handle=$(echo -n "$md" | cut -d '/' -f3)
+    if grep -A 2 "$handle" /proc/mdstat | grep -qi pending; then
+      mdadm --readwrite "$md"
     fi
   done
 fi
