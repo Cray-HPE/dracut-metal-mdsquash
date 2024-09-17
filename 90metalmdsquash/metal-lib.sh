@@ -145,6 +145,12 @@ export METAL_DISK_SMALL=375809638400
 export METAL_DISK_LARGE=1048576000000
 
 ##############################################################################
+# constant: METAL_IGNORE_THRESHOLD
+#
+# Omit any devices smaller than this size.
+export METAL_IGNORE_THRESHOLD="${METAL_IGNORE_THRESHOLD:-0}"
+
+##############################################################################
 # function: _trip_udev
 #
 # _trip_udev will call udevadm triggers to settle
