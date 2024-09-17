@@ -66,7 +66,7 @@ function prepare {
         mkdir -pv "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot"
     fi
     ln -snf "./${LIVE_DIR}/${OVERLAYFS_PATH}/boot" /run/initramfs/overlayfs/boot
-    
+
     cat << EOF > /run/initramfs/overlayfs/README.txt
 This directory contains two supporting directories for KDUMP
 - boot/ is a symbolic link that enables KDUMP to resolve the kernel and system symbol maps.
@@ -86,7 +86,7 @@ function load_boot_images {
     local kernel_image
     local kernel_ver
     local system_map
-    
+
     # Check the overlayFS first for the kernel version, incase a new kernel was installed on a prior boot.
     # Otherwise get the kernel version from the squashFS image.
     if [ -f /run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinuz ]; then
@@ -110,7 +110,7 @@ function load_boot_images {
     else
         info "vmlinux-${kernel_ver}.gz is already present in the boot directory for kdump"
     fi
-    
+
     # If the kernel was upgraded, then the System.map ill already exist in the OverlayFS.
     if [ ! -f /run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/System.map-${kernel_ver} ]; then
 
