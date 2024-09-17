@@ -95,7 +95,6 @@ case $SQFS_DRIVE_SCHEME in
     ;;
 esac
 
-IFS='=' read -ra ADDR <<< "${METAL_OVERLAY:-LABEL=ROOTRAID}"
 oval_drive_scheme=${METAL_OVERLAY%%=*}
 oval_drive_authority=${METAL_OVERLAY#*=}
 case "$oval_drive_scheme" in
