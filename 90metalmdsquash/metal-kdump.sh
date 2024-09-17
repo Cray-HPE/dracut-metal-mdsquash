@@ -53,14 +53,14 @@ LIVE_DIR=$(getarg rd.live.dir -d live_dir)
 # - Creates a README.txt file that describes the created directories on the overlayFS base partition.
 function prepare {
 
-    local kernel_savedir
+    local kdump_savedir
 
-    kernel_savedir="$(grep -oP 'KDUMP_SAVEDIR="file:///\K\S+[^"]' /run/rootfsbase/etc/sysconfig/kdump)"
+    kdump_savedir="$(grep -oP 'KDUMP_SAVEDIR="file://\K\S+[^"]' /run/rootfsbase/etc/sysconfig/kdump)"
 
-    if [ ! -d "/run/initramfs/overlayfs/${kernel_savedir}" ]; then
+    if [ ! -d "/run/initramfs/overlayfs/${kdump_savedir}" ]; then
         mkdir -pv "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/var/crash"
     fi
-    ln -snf "./${LIVE_DIR}/${OVERLAYFS_PATH}/var/crash" "/run/initramfs/overlayfs/${kernel_savedir}"
+    ln -snf "./${LIVE_DIR}/${OVERLAYFS_PATH}/var/crash" "/run/initramfs/overlayfs/${kdump_savedir}"
 
     if [ ! -d "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot" ]; then
         mkdir -pv "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot"
