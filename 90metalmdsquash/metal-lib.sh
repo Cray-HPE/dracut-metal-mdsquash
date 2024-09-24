@@ -177,7 +177,7 @@ _overlayFS_path_spec() {
 #
 # Optionally provide -b to reset the system.
 metal_die() {
-  local reset=0
+  local _reset=0
   local bootcurrent
   if [ "$1" = "-b" ]; then
     _reset=1
