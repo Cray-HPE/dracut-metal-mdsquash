@@ -281,8 +281,9 @@ fetch_sqfs() {
 add_sqfs() {
 
   local sqfs_store=/metal/squashfs
-  local dhcp_retry=$(getargnum 1 1 1000000000 rd.net.dhcp.retry=)
+  local dhcp_retry
   local dhcp_attempts=1
+  dhcp_retry=$(getargnum 1 1 1000000000 rd.net.dhcp.retry=)
   if [ "${METAL_URI_SCHEME}" != "file" ]; then
     tmp1="${METAL_URI_AUTHORITY#//}" # Chop the double slash prefix
     tmp2="${tmp1%%/*}"               # Chop the trailing path
