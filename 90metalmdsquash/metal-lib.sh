@@ -65,6 +65,7 @@ The metal-lib.sh library can not load in this state.
 EOF
     return 1
   fi
+  # shellcheck disable=SC1090
   command -v die > /dev/null 2>&1 || . $lib
 }
 _load_dracut_dep
