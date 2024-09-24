@@ -69,7 +69,7 @@ function prepare {
   cat << EOF > /run/initramfs/overlayfs/README.txt
 This directory contains two supporting directories for KDUMP
 - boot/ is a symbolic link that enables KDUMP to resolve the kernel and system symbol maps.
-- $crash_dir/ is a directory that KDUMP will dump into, this directory is bind mounted to /var/crash on the booted system.
+- $kdump_savedir/ is a directory that KDUMP will dump into, this directory is bind mounted to /var/crash on the booted system.
 EOF
 }
 
