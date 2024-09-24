@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,8 @@ Group: System/Management
 License: MIT License
 Summary: Dracut module for loading squashFS and persistent overlays
 Provides: metal-mdsquash
+Conflicts: dracut-metal-dmk8s < 3.1.0
+Conflicts: dracut-metal-luksetcd < 2.2.0
 
 Requires: coreutils
 Requires: curl
