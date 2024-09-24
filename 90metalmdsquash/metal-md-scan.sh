@@ -55,10 +55,10 @@ fi
 # if they did not fully sync before rebooting. The stall is usually only 1-5minutes, but it may vary
 # to an hour or indefinite.
 if [ -d /dev/md ]; then
-  for md in $(find /dev/md** -type b); do
+  while IFS= read -r -d '' md; do
     handle=$(echo -n "$md" | cut -d '/' -f3)
     if grep -A 2 "$handle" /proc/mdstat | grep -qi pending; then
       mdadm --readwrite "$md"
     fi
-  done
+  done < <(find /dev/md** -type b -print0)
 fi
