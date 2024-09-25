@@ -45,6 +45,7 @@ installkernel() {
 # called by dracut
 install() {
   inst_multiple blkid cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail wc vgs vgscan xfs_admin
+
   # install our callables
   # shellcheck disable=SC2154
   inst_simple "$moddir/mdadm.conf" "/etc/mdadm.conf"
@@ -52,6 +53,7 @@ install() {
   inst_simple "$moddir/metal-lib.sh" "/lib/metal-lib.sh"
   inst_script "$moddir/metal-md-disks.sh" /sbin/metal-md-disks
   inst_script "$moddir/metal-md-scan.sh" /sbin/metal-md-scan
+
   # install our hooks
   inst_hook cmdline 10 "$moddir/parse-metal.sh"
   inst_hook pre-udev 10 "$moddir/metal-genrules.sh"
