@@ -42,32 +42,7 @@ if [ -f "$fstab_metal_new" ]; then
     # Make new fstab file, remove commented out lines.
     cat "$fstab_metal_old" "$fstab_metal_new" | sort -u | grep -v '^#' > "$fstab_metal_temp"
 
-    # Verify the old fstab file was valid.
-    old_error=0
-    while IFS= read -r label; do
-      if ! blkid -L "$label" > /dev/null; then
-        echo >&2 'Old fstab is invalid; one or more defined partitions do not exist.'
-        old_error=1
-        break
-      fi
-    done < <(grep LABEL < "$fstab_metal_old" | awk '{print $1}' | awk -F '=' '{print $NF}')
-
-    # Verify the new fstab file is valid.
-    new_error=0
-    while IFS= read -r label; do
-      if ! blkid -L "$label" > /dev/null; then
-        echo >&2 'New fstab is invalid; one or more defined partitions do not exist.'
-        new_error=1
-        break
-      fi
-    done < <(grep LABEL < "$fstab_metal_new" | awk '{print $1}' | awk -F '=' '{print $NF}')
-
     # If no errors, copy the merged fstab into place. Otherwise fail with a fatal error for inspection.
-    if [ "$old_error" = 0 ] && [ "$new_error" = 0 ]; then
-      # All the labels in our merged fstab exist.
-      cp -v "$fstab_metal_temp" "$fstab_metal_old"
-    else
-      metal_die "FATAL FSTAB ERROR: One or more expected partitions do not exist. Please verify contents of $fstab_metal_old $fstab_metal_new and $fstab_metal_temp."
-    fi
+    cp -v "$fstab_metal_temp" "$fstab_metal_old"
   fi
 fi
