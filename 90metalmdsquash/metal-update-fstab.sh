@@ -26,23 +26,23 @@
 command -v metal_die > /dev/null 2>&1 || . /lib/metal-lib.sh
 
 fstab_metal_new=$METAL_FSTAB
-fstab_metal_old=/sysroot$METAL_FSTAB
+fstab_metal_current=/sysroot$METAL_FSTAB
 fstab_metal_temp=${METAL_FSTAB}.merged
 
 # If a new FSTab exists, this copies it regardless if there is no diff.
 if [ -f "$fstab_metal_new" ]; then
 
   # If no prior fstab exists, copy the new one into place.
-  if [ ! -f "$fstab_metal_old" ]; then
-    cp -v "$fstab_metal_new" "$fstab_metal_old"
+  if [ ! -f "$fstab_metal_current" ]; then
+    cp -v "$fstab_metal_new" "$fstab_metal_current"
 
   # If a prior fstab exists, merge it and verify all the labels exist before copying it into place.
-  elif diff -q "$fstab_metal_old" "$fstab_metal_new"; then
+  elif diff -q "$fstab_metal_current" "$fstab_metal_new"; then
 
     # Make new fstab file, remove commented out lines.
-    cat "$fstab_metal_old" "$fstab_metal_new" | sort -u | grep -v '^#' > "$fstab_metal_temp"
+    cat "$fstab_metal_current" "$fstab_metal_new" | sort -u | grep -v '^#' > "$fstab_metal_temp"
 
     # If no errors, copy the merged fstab into place. Otherwise fail with a fatal error for inspection.
-    cp -v "$fstab_metal_temp" "$fstab_metal_old"
+    cp -v "$fstab_metal_temp" "$fstab_metal_current"
   fi
 fi
