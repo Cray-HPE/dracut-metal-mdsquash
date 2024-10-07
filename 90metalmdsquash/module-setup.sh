@@ -25,7 +25,7 @@
 
 # called by dracut cmd
 check() {
-  require_binaries blkid cut curl efibootmgr head lsblk mdadm mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail vgs vgscan xfs_admin || return 1
+  require_binaries blkid cut curl dirname efibootmgr head lsblk mdadm mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe realpath sort tail vgs vgscan xfs_admin || return 1
   return 0
 }
 
@@ -44,7 +44,7 @@ installkernel() {
 
 # called by dracut
 install() {
-  inst_multiple blkid cut curl diff efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe sort tail wc vgs vgscan xfs_admin
+  inst_multiple blkid cut curl diff dirname efibootmgr head lsblk mkfs.ext4 mkfs.vfat mkfs.xfs mount parted partprobe realpath sort tail wc vgs vgscan xfs_admin
 
   # install our callables
   # shellcheck disable=SC2154

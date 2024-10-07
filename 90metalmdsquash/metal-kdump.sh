@@ -39,44 +39,58 @@ case "$(getarg root)" in
     ;;
 esac
 
-OVERLAYFS_PATH=$(_overlayFS_path_spec)
-[ -z "${OVERLAYFS_PATH}" ] && warn 'Failed to resolve overlayFS directory. kdump will not generate a system.map in the event of a crash.'
-LIVE_DIR=$(getarg rd.live.dir -d live_dir)
-[ -z "${LIVE_DIR}" ] && LIVE_DIR="LiveOS"
+oval_drive_scheme=${METAL_OVERLAY%%=*}
+oval_drive_authority=${METAL_OVERLAY#*=}
+overlayfs_mountpoint="$(lsblk -o MOUNTPOINT -nr "/dev/disk/by-${oval_drive_scheme,,}/${oval_drive_authority}")"
+
+overlayfs_path=$(_overlayFS_path_spec)
+[ -z "${overlayfs_path}" ] && warn 'Failed to resolve overlayFS directory. kdump will not generate a system.map in the event of a crash.'
+live_dir=$(getarg rd.live.dir -d live_dir)
+[ -z "${live_dir}" ] && live_dir="LiveOS"
 
 ##############################################################################
-# function: prepare
+# function: overlayfs_dump_dir
 #
 # - Creates the KDUMP_SAVEDIR for kdump to save crashes into.
-# - Creates a symbolic link that /kdump/boot will resolve for finding the kernel and System.map
 # - Creates a README.txt file that describes the created directories on the overlayFS base partition.
-function prepare {
+function overlayfs_dump_dir {
 
   local kdump_savedir
+  local kdump_savedir_parentdir
+  local link_target
+
+  if [ -z "${overlayfs_mountpoint}" ]; then
+    die "overlayfs_mountpoint was not set!"
+  fi
 
   kdump_savedir="$(grep -oP 'KDUMP_SAVEDIR="file://\K\S+[^"]' /run/rootfsbase/etc/sysconfig/kdump)"
+  kdump_savedir="${kdump_savedir/"${overlayfs_mountpoint}"/}"
+  kdump_savedir="${kdump_savedir#/}" # Trim leading slash for easier path joining.
 
-  if [ ! -d "/run/initramfs/overlayfs/${kdump_savedir}" ]; then
-    mkdir -pv "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/var/crash"
+  if [ ! -d "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/${kdump_savedir}" ]; then
+    mkdir -pv "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/${kdump_savedir}"
   fi
-  ln -snf "./${LIVE_DIR}/${OVERLAYFS_PATH}/var/crash" "/run/initramfs/overlayfs/${kdump_savedir}"
 
-  if [ ! -d "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot" ]; then
-    mkdir -pv "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot"
+  # Create only the leading directories, removing the final one. The final directory will become a symlink.
+  mkdir -pv "${overlayfs_mountpoint}/${kdump_savedir}" && rm -rf "${overlayfs_mountpoint:?}/${kdump_savedir}"
+  kdump_savedir_parentdir="$(dirname "$kdump_savedir")"
+  if [ "$kdump_savedir_parentdir" = '.' ]; then
+    kdump_savedir_parentdir=""
   fi
-  ln -snf "./${LIVE_DIR}/${OVERLAYFS_PATH}/boot" /run/initramfs/overlayfs/boot
+  link_target="$(realpath -s --relative-to="${overlayfs_mountpoint}/${kdump_savedir_parentdir}" "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/${kdump_savedir}")"
+  ln -snf "$link_target" "${overlayfs_mountpoint}/${kdump_savedir}"
 
-  cat << EOF > /run/initramfs/overlayfs/README.txt
+  cat << EOF > "${overlayfs_mountpoint}/README.txt"
 This directory contains two supporting directories for KDUMP
-- boot/ is a symbolic link that enables KDUMP to resolve the kernel and system symbol maps.
+- boot/ is a symbolic link that enables KDUMP to resolve the kernel and system symbol maps (for legacy kdump<1.9)
 - $kdump_savedir/ is a directory that KDUMP will dump into, this directory is bind mounted to /var/crash on the booted system.
 EOF
 }
 
 ##############################################################################
-# function: load_boot_images
+# function: load_boot_images (LEGACY: kdump<1.9)
 #
-# Populates the overlayFS boot directoy with a kernel and System.map that kdump will use for dumps.
+# Populates the overlayFS boot directory with a kernel and System.map that kdump will use for dumps.
 # This copies the currently selected kernel, keying off of the symbolic link at /sysroot/boot/vmlinuz.
 # That symbolic link will point to the currently loaded kernel on boot.
 # NOTE: When running kexec, the new kernel will be copied into the target boot directory by the overlayFS itself.
@@ -86,10 +100,20 @@ function load_boot_images {
   local kernel_ver
   local system_map
 
+  if [ -z "${overlayfs_mountpoint}" ]; then
+    die "overlayfs_mountpoint was not set!"
+  fi
+
+  # LEGACY (kdump<1.9)
+  if [ ! -d "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/boot" ]; then
+    mkdir -pv "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/boot"
+  fi
+  ln -snf "./${live_dir}/${overlayfs_path}/boot" "${overlayfs_mountpoint}/boot"
+
   # Check the overlayFS first for the kernel version, incase a new kernel was installed on a prior boot.
   # Otherwise get the kernel version from the squashFS image.
-  if [ -f "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinuz" ]; then
-    kernel_ver=$(readlink "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinuz" | grep -oP 'vmlinuz-\K\S+')
+  if [ -f "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/boot/vmlinuz" ]; then
+    kernel_ver=$(readlink "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/boot/vmlinuz" | grep -oP 'vmlinuz-\K\S+')
   elif [ -f /run/rootfsbase/boot/vmlinuz ]; then
     kernel_ver=$(readlink /run/rootfsbase/boot/vmlinuz | grep -oP 'vmlinuz-\K\S+')
   else
@@ -97,12 +121,12 @@ function load_boot_images {
   fi
 
   # If the kernel was upgraded, then the image ill already exist in the OverlayFS.
-  if [ ! -f "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/vmlinux-${kernel_ver}.gz" ]; then
+  if [ ! -f "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/boot/vmlinux-${kernel_ver}.gz" ]; then
 
     # If the kernel image does not exist, then this is a deployment (first-boot) and the kernel needs to be copied.
     if [ -f "/run/rootfsbase/boot/vmlinux-${kernel_ver}.gz" ]; then
       kernel_image=/run/rootfsbase/boot/vmlinux-${kernel_ver}.gz
-      cp -pv "$kernel_image" /run/initramfs/overlayfs/boot/
+      cp -pv "$kernel_image" "${overlayfs_mountpoint}/boot/"
     else
       warn "Failed to resolve vmlinux-${kernel_ver}.gz; kdump will produce incomplete dumps."
     fi
@@ -111,12 +135,12 @@ function load_boot_images {
   fi
 
   # If the kernel was upgraded, then the System.map ill already exist in the OverlayFS.
-  if [ ! -f "/run/initramfs/overlayfs/${LIVE_DIR}/${OVERLAYFS_PATH}/boot/System.map-${kernel_ver}" ]; then
+  if [ ! -f "${overlayfs_mountpoint}/${live_dir}/${overlayfs_path}/boot/System.map-${kernel_ver}" ]; then
 
     # If the System.map does not exist, then this is a deployment (first-boot) and the System.map needs to be copied.
     if [ -f "/run/rootfsbase/boot/System.map-${kernel_ver}" ]; then
       system_map=/run/rootfsbase/boot/System.map-${kernel_ver}
-      cp -pv "${system_map}" /run/initramfs/overlayfs/boot/
+      cp -pv "${system_map}" ${overlayfs_mountpoint}/boot/
     else
       warn "Failed to resolve System.map-${kernel_ver}; kdump will produce incomplete dumps."
     fi
@@ -126,5 +150,17 @@ function load_boot_images {
 
 }
 
-prepare
-load_boot_images
+OVERLAYFS=0
+getargbool 0 rd.live.overlay.overlayfs && OVERLAYFS=1
+if [ "$OVERLAYFS" -eq 1 ]; then
+  info "OverlayFS detected. Configuring kdump to redirect to the persistent overlayFS."
+  overlayfs_dump_dir
+  load_boot_images
+else
+  root=$(getarg root)
+  case "$root" in
+    live:*)
+      warn "System is running in RAM without an overlayFS or persistent disk. kdump may fail unless it is configured by other means."
+      ;;
+  esac
+fi
