@@ -40,10 +40,8 @@ case "$root" in
     ;;
 esac
 
-if [ -n "${METAL_OVERLAY:-}" ]; then
-  oval_drive_scheme=${METAL_OVERLAY%%=*}
-  oval_drive_authority=${METAL_OVERLAY#*=}
-  overlayfs_mountpoint="$(lsblk -o MOUNTPOINT -nr "/dev/disk/by-${oval_drive_scheme,,}/${oval_drive_authority}")"
+if [ -n "${OVAL_DRIVE_SCHEME:-}" ] && [ -n "${OVAL_DRIVE_AUTHORITY:-}" ]; then
+  overlayfs_mountpoint="$(lsblk -o MOUNTPOINT -nr "/dev/disk/by-${OVAL_DRIVE_SCHEME,,}/${OVAL_DRIVE_AUTHORITY}")"
 else
   exit 0
 fi
