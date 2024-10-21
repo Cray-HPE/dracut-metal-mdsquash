@@ -31,7 +31,8 @@ set -o pipefail
 command -v getarg > /dev/null 2>&1 || . /lib/dracut-lib.sh
 command -v _overlayFS_path_spec > /dev/null 2>&1 || . /lib/metal-lib.sh
 
-case "$(getarg root)" in
+root=$(getarg root)
+case "$root" in
   kdump)
 
     # Ensure nothing else in this script is invoked in this case.
@@ -157,7 +158,6 @@ if [ "$OVERLAYFS" -eq 1 ]; then
   overlayfs_dump_dir
   load_boot_images
 else
-  root=$(getarg root)
   case "$root" in
     live:*)
       warn "System is running in RAM without an overlayFS or persistent disk. kdump may fail unless it is configured by other means."
