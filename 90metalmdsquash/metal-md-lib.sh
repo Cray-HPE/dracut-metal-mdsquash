@@ -84,14 +84,20 @@ esac
 
 # support CDLABEL by overriding it to LABEL, CDLABEL only means anything in other dracut modules
 # and those modules will parse it out of root= (not our variable) - normalize it in our context.
-[ "${SQFS_DRIVE_SCHEME}" = 'CDLABEL' ] || SQFS_DRIVE_SCHEME=LABEL
-[ -z "${SQFS_DRIVE_AUTHORITY}" ] && SQFS_DRIVE_SCHEME=SQFSRAID
+[ "${SQFS_DRIVE_SCHEME}" = 'CDLABEL' ] && SQFS_DRIVE_SCHEME='LABEL'
+[ -z "${SQFS_DRIVE_AUTHORITY}" ] && SQFS_DRIVE_SCHEME=''
 case $SQFS_DRIVE_SCHEME in
   PATH | path | UUID | uuid | LABEL | label)
     printf '%-12s: %s\n' 'squashFS' "${SQFS_DRIVE_SCHEME}=${SQFS_DRIVE_AUTHORITY}"
     ;;
+  '')
+    # no-op; disabled
+    :
+    ;;
   *)
-    metal_die "Unsupported sqfs-drive-scheme ${SQFS_DRIVE_SCHEME}\nSupported schemes: PATH, UUID, and LABEL"
+    warn "Unsupported sqfs-drive-scheme: ${SQFS_DRIVE_SCHEME}."
+    info 'Supported schemes: PATH, UUID, and LABEL'
+    exit 1
     ;;
 esac
 
@@ -106,8 +112,8 @@ case "$oval_drive_scheme" in
     :
     ;;
   *)
-    warn "Unsupported oval-drive-scheme ${oval_drive_scheme}"
-    info "Supported schemes: PATH, UUID, and LABEL (upper and lower cases)"
+    warn "Unsupported oval-drive-scheme: ${oval_drive_scheme}"
+    info 'Supported schemes: PATH, UUID, and LABEL'
     exit 1
     ;;
 esac
