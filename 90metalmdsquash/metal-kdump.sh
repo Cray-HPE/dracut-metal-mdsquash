@@ -140,7 +140,7 @@ function load_boot_images {
     # If the System.map does not exist, then this is a deployment (first-boot) and the System.map needs to be copied.
     if [ -f "/run/rootfsbase/boot/System.map-${kernel_ver}" ]; then
       system_map=/run/rootfsbase/boot/System.map-${kernel_ver}
-      cp -pv "${system_map}" ${overlayfs_mountpoint}/boot/
+      cp -pv "${system_map}" "${overlayfs_mountpoint}/boot/"
     else
       warn "Failed to resolve System.map-${kernel_ver}; kdump will produce incomplete dumps."
     fi
