@@ -169,11 +169,15 @@ _trip_udev() {
 #   overlay-SQFSRAID-cfc752e2-ebb3-4fa3-92e9-929e599d3ad2
 #
 _overlayFS_path_spec() {
+  if [ -z "$SQFS_DRIVE_SCHEME" ] || [ -z "$SQFS_DRIVE_AUTHORITY" ]; then
+    echo
+    return
+  fi
   # if no label is given, grab the default array's UUID and use the default label
   if [ -b "/dev/disk/by-${SQFS_DRIVE_SCHEME,,}/${SQFS_DRIVE_AUTHORITY}" ]; then
-    echo "overlay-${SQFS_DRIVE_AUTHORITY:-SQFSRAID}-$(blkid -s UUID -o value "/dev/disk/by-${SQFS_DRIVE_SCHEME,,}/${SQFS_DRIVE_AUTHORITY}")"
+    echo "overlay-${SQFS_DRIVE_AUTHORITY}-$(blkid -s UUID -o value "/dev/disk/by-${SQFS_DRIVE_SCHEME,,}/${SQFS_DRIVE_AUTHORITY}")"
   else
-    echo "overlay-${SQFS_DRIVE_AUTHORITY:-SQFSRAID}-$(blkid -s UUID -o value /dev/md/SQFS)"
+    echo "overlay-${SQFS_DRIVE_AUTHORITY}-$(blkid -s UUID -o value /dev/md/SQFS)"
   fi
 }
 
