@@ -50,7 +50,7 @@ metal_minimum_disk_size=$(getargnum 16 0 1000000000 metal.min-disk-size)
 METAL_IGNORE_THRESHOLD=$((metal_minimum_disk_size * 1024 ** 3))
 export METAL_IGNORE_THRESHOLD
 
-# root must never be empty; if it is then nothing will boot - dracut will never find anything todo.
+# root must never be empty; if it is then nothing will boot - dracut will never find anything to do.
 root=$(getarg root)
 case "$root" in
   live:/dev/*)
