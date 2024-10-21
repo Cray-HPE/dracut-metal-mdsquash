@@ -175,7 +175,16 @@ make_raid_overlay() {
 # Make our dmsquash-live-root overlayFS.
 add_overlayfs() {
   [ -f /tmp/metalovalimg.done ] && return
+
+  local metal_overlayfs_id
   local mpoint=/metal/ovaldisk
+
+  metal_overlayfs_id="$(_overlayFS_path_spec)"
+  if [ -z "$metal_overlayfs_id" ]; then
+    warn "Could not resolve device mapper ID for LIVE image. Can not make persistent overlayFS."
+    return 1
+  fi
+
   mkdir -pv ${mpoint}
   if ! mount -n -t xfs /dev/md/ROOT "$mpoint"; then
 
@@ -185,13 +194,11 @@ add_overlayfs() {
   fi
 
   # Create OverlayFS directories for dmsquash-live
-  # See source-code for details: https://github.com/dracutdevs/dracut/blob/09a1e5afd2eaa7f8e9f3beaf8a48283357e7fea0/modules.d/90dmsquash-live/dmsquash-live-root.sh#L168-L169
   # Requires two directories; ovlwork, and overlay-$FSLABEL-$UUID (where FSLABEL and UUID are of the partition containing the squashFS image).
-  [ -z "${METAL_OVERLAYfs_id}" ] && METAL_OVERLAYfs_id="$(_overlayFS_path_spec)"
   # shellcheck disable=SC2174
   mkdir -v -m 0755 -p \
-    "${mpoint}/${live_dir}/${METAL_OVERLAYfs_id}" \
-    "${mpoint}/${live_dir}/${METAL_OVERLAYfs_id}/../ovlwork"
+    "${mpoint}/${live_dir}/${metal_overlayfs_id}" \
+    "${mpoint}/${live_dir}/${metal_overlayfs_id}/../ovlwork"
   echo 1 > /tmp/metalovalimg.done && info 'OverlayFS is ready ...'
   umount ${mpoint}
 }
