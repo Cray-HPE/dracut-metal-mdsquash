@@ -77,5 +77,63 @@ case "$root" in
     ;;
 esac
 
+# rootfallback may be empty, if it is then this block will ignore.
+boot_fallback=$(getarg rootfallback=)
+BOOT_DRIVE_SCHEME=${boot_fallback%%=*}
+[ -z "$BOOT_DRIVE_SCHEME" ] && BOOT_DRIVE_SCHEME=LABEL
+BOOT_DRIVE_AUTHORITY=${boot_fallback#*=}
+[ -z "$BOOT_DRIVE_AUTHORITY" ] && BOOT_DRIVE_AUTHORITY=BOOTRAID
+case $BOOT_DRIVE_SCHEME in
+  PATH | path | UUID | uuid | LABEL | label)
+    printf '%-12s: %s\n' 'bootloader' "${BOOT_DRIVE_SCHEME}=${BOOT_DRIVE_AUTHORITY}"
+    ;;
+  '')
+    # no-op; drive disabled
+    :
+    ;;
+  *)
+    warn "Unsupported boot-drive-scheme: ${BOOT_DRIVE_SCHEME}"
+    info 'Supported schemes: PATH, UUID, and LABEL'
+    ;;
+esac
+export BOOT_DRIVE_SCHEME
+export BOOT_DRIVE_AUTHORITY
+
+# support CDLABEL by overriding it to LABEL, CDLABEL only means anything in other dracut modules
+# and those modules will parse it out of root= (not our variable) - normalize it in our context.
+[ "${SQFS_DRIVE_SCHEME}" = 'CDLABEL' ] && SQFS_DRIVE_SCHEME='LABEL'
+[ -z "${SQFS_DRIVE_AUTHORITY}" ] && SQFS_DRIVE_SCHEME=''
+case $SQFS_DRIVE_SCHEME in
+  PATH | path | UUID | uuid | LABEL | label)
+    printf '%-12s: %s\n' 'squashFS' "${SQFS_DRIVE_SCHEME}=${SQFS_DRIVE_AUTHORITY}"
+    ;;
+  '')
+    # no-op; disabled
+    :
+    ;;
+  *)
+    warn "Unsupported sqfs-drive-scheme: ${SQFS_DRIVE_SCHEME}."
+    info 'Supported schemes: PATH, UUID, and LABEL'
+    ;;
+esac
 export SQFS_DRIVE_SCHEME
 export SQFS_DRIVE_AUTHORITY
+
+OVAL_DRIVE_SCHEME=${METAL_OVERLAY%%=*}
+OVAL_DRIVE_AUTHORITY=${METAL_OVERLAY#*=}
+case "$OVAL_DRIVE_SCHEME" in
+  PATH | path | UUID | uuid | LABEL | label)
+    printf '%-12s: %s\n' 'overlay' "${OVAL_DRIVE_SCHEME}=${OVAL_DRIVE_AUTHORITY}"
+    ;;
+  '')
+    # no-op; disabled
+    :
+    ;;
+  *)
+    warn "Unsupported oval-drive-scheme: ${OVAL_DRIVE_SCHEME}"
+    info 'Supported schemes: PATH, UUID, and LABEL'
+    ;;
+esac
+
+export OVAL_DRIVE_SCHEME
+export OVAL_DRIVE_AUTHORITY

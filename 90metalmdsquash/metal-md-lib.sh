@@ -63,61 +63,6 @@ case "${METAL_URI_AUTHORITY}" in
     ;;
 esac
 
-# rootfallback may be empty, if it is then this block will ignore.
-boot_fallback=$(getarg rootfallback=)
-boot_drive_scheme=${boot_fallback%%=*}
-[ -z "$boot_drive_scheme" ] && boot_drive_scheme=LABEL
-boot_drive_authority=${boot_fallback#*=}
-[ -z "$boot_drive_authority" ] && boot_drive_authority=BOOTRAID
-case $boot_drive_scheme in
-  PATH | path | UUID | uuid | LABEL | label)
-    printf '%-12s: %s\n' 'bootloader' "${boot_drive_scheme}=${boot_drive_authority}"
-    ;;
-  '')
-    # no-op; drive disabled
-    :
-    ;;
-  *)
-    metal_die "Unsupported boot-drive-scheme ${boot_drive_scheme} Supported schemes: PATH, UUID, and LABEL (upper and lower cases)"
-    ;;
-esac
-
-# support CDLABEL by overriding it to LABEL, CDLABEL only means anything in other dracut modules
-# and those modules will parse it out of root= (not our variable) - normalize it in our context.
-[ "${SQFS_DRIVE_SCHEME}" = 'CDLABEL' ] && SQFS_DRIVE_SCHEME='LABEL'
-[ -z "${SQFS_DRIVE_AUTHORITY}" ] && SQFS_DRIVE_SCHEME=''
-case $SQFS_DRIVE_SCHEME in
-  PATH | path | UUID | uuid | LABEL | label)
-    printf '%-12s: %s\n' 'squashFS' "${SQFS_DRIVE_SCHEME}=${SQFS_DRIVE_AUTHORITY}"
-    ;;
-  '')
-    # no-op; disabled
-    :
-    ;;
-  *)
-    warn "Unsupported sqfs-drive-scheme: ${SQFS_DRIVE_SCHEME}."
-    info 'Supported schemes: PATH, UUID, and LABEL'
-    exit 1
-    ;;
-esac
-
-oval_drive_scheme=${METAL_OVERLAY%%=*}
-oval_drive_authority=${METAL_OVERLAY#*=}
-case "$oval_drive_scheme" in
-  PATH | path | UUID | uuid | LABEL | label)
-    printf '%-12s: %s\n' 'overlay' "${oval_drive_scheme}=${oval_drive_authority}"
-    ;;
-  '')
-    # no-op; disabled
-    :
-    ;;
-  *)
-    warn "Unsupported oval-drive-scheme: ${oval_drive_scheme}"
-    info 'Supported schemes: PATH, UUID, and LABEL'
-    exit 1
-    ;;
-esac
-
 ##############################################################################
 ## SquashFS Storage
 # This area provides a simple partition for fallback boots, and a partition for storing squashFS
@@ -165,7 +110,11 @@ make_raid_store() {
   mdadm --create /dev/md/SQFS --run --verbose --assume-clean --metadata=1.2 --level="$metal_md_level" "$mdadm_raid_devices" "${sqfs_raid_parts[@]}" || metal_die -b "Failed to make filesystem on /dev/md/SQFS"
 
   _trip_udev
-  mkfs.vfat -F32 -n "${boot_drive_authority}" /dev/md/BOOT || metal_die 'Failed to format bootraid.'
+  if [ -z "${BOOT_DRIVE_AUTHORITY:-}" ]; then
+    warn "No target for bootloader drive partition creation."
+  else
+    mkfs.vfat -F32 -n "${BOOT_DRIVE_AUTHORITY}" /dev/md/BOOT || metal_die "Failed to format ${BOOT_DRIVE_AUTHORITY}."
+  fi
 
   # NOTE: DO NOT LABEL THE SQFS ARRAY HERE, or dracut may try to open it before we've populated it with artifacts.
   mkfs.xfs -f /dev/md/SQFS || metal_die 'Failed to format squashFS storage.'
@@ -212,7 +161,12 @@ make_raid_overlay() {
   mdadm --create /dev/md/AUX --assume-clean --run --verbose --metadata=1.2 --level='stripe' "$mdadm_raid_devices" "${aux_raid_parts[@]}" || metal_die -b "Failed to make filesystem on /dev/md/AUX"
 
   _trip_udev
-  mkfs.xfs -f -L "${oval_drive_authority}" /dev/md/ROOT || metal_die 'Failed to format overlayFS storage.'
+
+  if [ -z "${OVAL_DRIVE_AUTHORITY:-}" ]; then
+    warn "No target for RAID overlayFS partition creation."
+  else
+    mkfs.xfs -f -L "${OVAL_DRIVE_AUTHORITY}" /dev/md/ROOT || metal_die "Failed to format ${OVAL_DRIVE_AUTHORITY} overlayFS storage."
+  fi
   echo 1 > /tmp/metalovaldisk.done && info 'Overlay storage is ready ...'
 }
 
@@ -227,7 +181,7 @@ add_overlayfs() {
 
     # try shasta-1.3 formatting or die.
     mount -n -t ext4 /dev/md/ROOT "$mpoint" \
-      || metal_die "Failed to mount ${oval_drive_authority} as xfs or ext4"
+      || metal_die "Failed to mount /dev/md/ROOT as xfs or ext4"
   fi
 
   # Create OverlayFS directories for dmsquash-live
