@@ -40,9 +40,13 @@ case "$root" in
     ;;
 esac
 
-oval_drive_scheme=${METAL_OVERLAY%%=*}
-oval_drive_authority=${METAL_OVERLAY#*=}
-overlayfs_mountpoint="$(lsblk -o MOUNTPOINT -nr "/dev/disk/by-${oval_drive_scheme,,}/${oval_drive_authority}")"
+if [ -n "${METAL_OVERLAY:-}" ]; then
+  oval_drive_scheme=${METAL_OVERLAY%%=*}
+  oval_drive_authority=${METAL_OVERLAY#*=}
+  overlayfs_mountpoint="$(lsblk -o MOUNTPOINT -nr "/dev/disk/by-${oval_drive_scheme,,}/${oval_drive_authority}")"
+else
+  exit 0
+fi
 
 overlayfs_path=$(_overlayFS_path_spec)
 [ -z "${overlayfs_path}" ] && warn 'Failed to resolve overlayFS directory. kdump will not generate a system.map in the event of a crash.'

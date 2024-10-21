@@ -31,7 +31,7 @@ getargbool 0 metal.debug -d -y METAL_DEBUG && METAL_DEBUG=1
 METAL_DISKS=$(getargnum 2 1 10 metal.disks)
 getargbool 0 metal.no-wipe -d -y METAL_NOWIPE && METAL_NOWIPE=1 || METAL_NOWIPE=0
 METAL_OVERLAY=$(getarg rd.live.overlay)
-[ -z "${METAL_OVERLAY}" ] && METAL_OVERLAY=LABEL=ROOTRAID
+[ -z "${METAL_OVERLAY}" ] && METAL_OVERLAY=''
 METAL_SERVER=$(getarg metal.server=)
 
 # For ${:+} BASH substitution to work, the value must be null or unset (0 != null in BASH)
